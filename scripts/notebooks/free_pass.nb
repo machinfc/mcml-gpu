@@ -1,0 +1,188 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 8.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       157,          7]
+NotebookDataLength[      5771,        179]
+NotebookOptionsPosition[      4988,        146]
+NotebookOutlinePosition[      5325,        161]
+CellTagsIndexPosition[      5282,        158]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["\<\
+Analisis del recorrido libre de los fotones\
+\>", "Section",
+ CellChangeTimes->{{3.6012202955049477`*^9, 3.601220313991446*^9}, {
+  3.601221171575431*^9, 3.601221173950205*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"layers", "=", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"2.5", ",", "250", ",", "0.01"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"1.7", ",", "125", ",", "0.25"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"1.2", ",", "125", ",", "2.5"}], "}"}]}], "}"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"No", "=", "100000"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{"For", " ", "[", 
+  RowBox[{
+   RowBox[{"i", "=", "1"}], ",", 
+   RowBox[{"i", "\[LessEqual]", "3"}], ",", 
+   RowBox[{"i", "++"}], ",", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"sum", "=", "0"}], ";", "\[IndentingNewLine]", 
+    RowBox[{"Print", "[", 
+     RowBox[{"\"\<Capa \>\"", ",", "i"}], "]"}], ";", "\[IndentingNewLine]", 
+    RowBox[{"For", "[", 
+     RowBox[{
+      RowBox[{"n", "=", "1"}], ",", 
+      RowBox[{"n", "<", "No"}], ",", 
+      RowBox[{"n", "++"}], ",", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"\[Lambda]", "=", 
+        RowBox[{
+         RowBox[{"-", 
+          RowBox[{"Log", "[", 
+           RowBox[{"Random", "[", "]"}], "]"}]}], "/", 
+         RowBox[{"(", 
+          RowBox[{
+           RowBox[{"layers", "[", 
+            RowBox[{"[", 
+             RowBox[{"i", ",", "1"}], "]"}], "]"}], "+", 
+           RowBox[{"layers", "[", 
+            RowBox[{"[", 
+             RowBox[{"i", ",", "2"}], "]"}], "]"}]}], ")"}]}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sum", "=", 
+        RowBox[{"sum", "+", "\[Lambda]"}]}], ";"}]}], "\[IndentingNewLine]", 
+     "]"}], ";", "\[IndentingNewLine]", 
+    RowBox[{"Print", "[", 
+     RowBox[{"sum", "/", "No"}], "]"}], ";"}]}], "\[IndentingNewLine]", 
+  "]"}]}], "Input",
+ CellChangeTimes->{{3.601220347193112*^9, 3.601220360092038*^9}, {
+  3.6012204673534184`*^9, 3.601220687129991*^9}, {3.6012207220011377`*^9, 
+  3.601221084243981*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Capa \"\>", "\[InvisibleSpace]", "1"}],
+  SequenceForm["Capa ", 1],
+  Editable->False]], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.601221242096538*^9}],
+
+Cell[BoxData["0.003980270187407991`"], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.6012212443312473`*^9}],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Capa \"\>", "\[InvisibleSpace]", "2"}],
+  SequenceForm["Capa ", 2],
+  Editable->False]], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.601221244389017*^9}],
+
+Cell[BoxData["0.007915869357319815`"], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.601221246594327*^9}],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Capa \"\>", "\[InvisibleSpace]", "3"}],
+  SequenceForm["Capa ", 3],
+  Editable->False]], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.601221246623507*^9}],
+
+Cell[BoxData["0.0078926699971637`"], "Print",
+ CellChangeTimes->{{3.601220726007126*^9, 3.601220767177046*^9}, 
+   3.601220862570273*^9, {3.6012210332854633`*^9, 3.601221045749112*^9}, {
+   3.601221085723361*^9, 3.601221120861903*^9}, 3.6012212488700447`*^9}]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Estimado de dr y dz", "Subsection",
+ CellChangeTimes->{{3.601221415700432*^9, 3.601221439110861*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"0.4", "/", "0.0005"}]], "Input",
+ CellChangeTimes->{{3.601221382062935*^9, 3.601221389809325*^9}}],
+
+Cell[BoxData["800.`"], "Output",
+ CellChangeTimes->{3.601221391798712*^9}]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+},
+WindowSize->{740, 569},
+WindowMargins->{{Automatic, 197}, {Automatic, 11}},
+FrontEndVersion->"8.0 for Linux x86 (64-bit) (November 7, 2010)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[579, 22, 187, 4, 71, "Section"],
+Cell[CellGroupData[{
+Cell[791, 30, 1884, 51, 221, "Input"],
+Cell[CellGroupData[{
+Cell[2700, 85, 358, 7, 23, "Print"],
+Cell[3061, 94, 261, 3, 23, "Print"],
+Cell[3325, 99, 358, 7, 23, "Print"],
+Cell[3686, 108, 259, 3, 23, "Print"],
+Cell[3948, 113, 358, 7, 23, "Print"],
+Cell[4309, 122, 259, 3, 23, "Print"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[4617, 131, 107, 1, 37, "Subsection"],
+Cell[CellGroupData[{
+Cell[4749, 136, 122, 2, 30, "Input"],
+Cell[4874, 140, 74, 1, 30, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)

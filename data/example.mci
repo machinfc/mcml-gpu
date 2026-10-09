@@ -1,0 +1,23 @@
+####
+# Template of input files for Monte Carlo simulation (mcml).
+# Anything in a line after "#" is ignored as comments.
+# Space lines are also ignored.
+# Lengths are in cm, mua and mus are in 1/cm.
+####
+
+1.0						# file version
+1						# number of runs
+
+### Specify data for run 1
+paralelo108.mco	       A			# output filename, ASCII/Binary
+100000000		       			# No. of photons
+0.0005	0.0005					# dz, dr
+800	800	1				# No. of dz, dr & da.
+
+3						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.4	2.5	250	0.8	0.01		# layer 1
+1.4	1.7	125	0.8	0.25		# layer 2
+1.4	1.2	125	0.8	2.5		# layer 3
+1.0						# n for medium below.

@@ -23,6 +23,9 @@
 #endif
 
 #include "mcml.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 /*	Declare before they are used in main(). */
 FILE *GetFile(char *);
@@ -61,20 +64,32 @@ time_t PunchTime(char F, char *Msg)
 #if GNUCC
   return(0);
 #else
+#ifdef _OPENMP
+  static double  wt0;	/* high-resolution wall-clock reference. */
+#else
   static clock_t ut0;	/* user time reference. */
+#endif
   static time_t  rt0;	/* real time reference. */
   double secs;
   char s[STRLEN];
   
   if(F==0) {
-    ut0 = clock();
     rt0 = time(NULL);
+#ifdef _OPENMP
+    wt0 = omp_get_wtime();
+#else
+    ut0 = clock();
+#endif
     return(0);
   }
   else if(F==1)  {
+#ifdef _OPENMP
+    secs = omp_get_wtime() - wt0;
+#else
     secs = (clock() - ut0)/(double)CLOCKS_PER_SEC;
+#endif
     if (secs<0) secs=0;	/* clock() can overflow. */
-    sprintf(s, "User time: %8.0lf sec = %8.2lf hr.  %s\n", 
+    sprintf(s, "Wall/User time: %8.3lf sec = %8.2lf hr.  %s\n", 
 	    secs, secs/3600.0, Msg);
     puts(s);
     strcpy(Msg, s);
@@ -123,19 +138,46 @@ void ReportResult(InputStruct In_Parm, OutStruct Out_Parm)
   WriteResult(In_Parm, Out_Parm, time_report);
 }
 
+static Boolean UseGPU = 0;
+
 /***********************************************************
  *	Get the file name of the input data file from the 
- *	argument to the command line.
+ *	argument to the command line, along with optional
+ *	execution flags (--gpu, --cpu, --threads <N> / -t <N>).
  ****/
 void GetFnameFromArgv(int argc,
 					  char * argv[],
 					  char * input_filename)
 {
-  if(argc>=2) {			/* filename in command line */
-    strcpy(input_filename, argv[1]);
+  int i;
+  const char *env_backend = getenv("MCML_BACKEND");
+  input_filename[0] = '\0';
+
+  if (env_backend != NULL &&
+      (strcmp(env_backend, "cuda") == 0 || strcmp(env_backend, "gpu") == 0 ||
+       strcmp(env_backend, "CUDA") == 0 || strcmp(env_backend, "GPU") == 0)) {
+    UseGPU = 1;
   }
-  else
-    input_filename[0] = '\0';
+
+  for (i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--gpu") == 0 || strcmp(argv[i], "--cuda") == 0) {
+      UseGPU = 1;
+    } else if (strcmp(argv[i], "--cpu") == 0 || strcmp(argv[i], "--omp") == 0) {
+      UseGPU = 0;
+    } else if ((strcmp(argv[i], "--threads") == 0 ||
+                strcmp(argv[i], "-t") == 0) &&
+               i + 1 < argc) {
+      int nthreads = atoi(argv[++i]);
+#ifdef _OPENMP
+      if (nthreads > 0)
+        omp_set_num_threads(nthreads);
+#else
+      (void)nthreads;
+#endif
+    } else if (argv[i][0] != '-') {
+      strcpy(input_filename, argv[i]);
+    }
+  }
 } 
 
     
@@ -144,11 +186,12 @@ void GetFnameFromArgv(int argc,
  ****/
 void DoOneRun(short NumRuns, InputStruct *In_Ptr)
 {
-  register long i_photon;	
+  long i_photon;	
 	/* index to photon. register for speed.*/
   OutStruct out_parm;		/* distribution of photons.*/
   PhotonStruct photon;
   long num_photons = In_Ptr->num_photons, photon_rep=10;
+  Boolean ran_on_gpu = 0;
 
 #if THINKCPROFILER
   InitProfile(200,200); cecho2file("prof.rpt",0, stdout);
@@ -157,18 +200,49 @@ void DoOneRun(short NumRuns, InputStruct *In_Ptr)
   InitOutputData(*In_Ptr, &out_parm);
   out_parm.Rsp = Rspecular(In_Ptr->layerspecs);	
   i_photon = num_photons;
+
+#ifdef ENABLE_CUDA
+  if (UseGPU) {
+    InitDeviceCUDA();
+  }
+#endif
+
   PunchTime(0, "");
-    
-  do {
-    if(num_photons - i_photon == photon_rep) {
-      printf("%ld photons & %hd runs left, ", i_photon, NumRuns);
-      PredictDoneTime(num_photons - i_photon, num_photons);
-      photon_rep *= 10;
+
+#ifdef ENABLE_CUDA
+  if (UseGPU) {
+    ran_on_gpu = RunSimulationCUDA(In_Ptr, &out_parm);
+    if (!ran_on_gpu) {
+      fprintf(stderr, "[WARN] CUDA device unavailable; falling back to CPU.\n");
     }
-    LaunchPhoton(out_parm.Rsp, In_Ptr->layerspecs, &photon);
-    do  HopDropSpin(In_Ptr, &photon, &out_parm);
-    while (!photon.dead);
-  } while(--i_photon);
+  }
+#endif
+
+  if (!ran_on_gpu) {
+#ifdef _OPENMP
+    (void)NumRuns;
+    (void)photon_rep;
+    printf("[Backend] OpenMP CPU (%d threads)\n", omp_get_max_threads());
+    #pragma omp parallel for schedule(dynamic, 1024) private(photon)
+    for(i_photon = 0; i_photon < num_photons; i_photon++) {
+      LaunchPhoton(out_parm.Rsp, In_Ptr->layerspecs, &photon);
+      do  HopDropSpin(In_Ptr, &photon, &out_parm);
+      while (!photon.dead);
+    }
+#else
+    printf("[Backend] Serial CPU (1 thread)\n");
+    do {
+      if(num_photons - i_photon == photon_rep) {
+        printf("%ld photons & %hd runs left, ", i_photon, NumRuns);
+        PredictDoneTime(num_photons - i_photon, num_photons);
+        photon_rep *= 10;
+      }
+      LaunchPhoton(out_parm.Rsp, In_Ptr->layerspecs, &photon);
+      do  HopDropSpin(In_Ptr, &photon, &out_parm);
+      while (!photon.dead);
+    } while(--i_photon);
+#endif
+  }
     
 #if THINKCPROFILER
   exit(0);

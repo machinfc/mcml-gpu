@@ -75,6 +75,7 @@ double **AllocMatrix(short nrl,short nrh,
  ****/
 void FreeVector(double *v,short nl,short nh)
 {
+  (void)nh;
   free((char*) (v+nl));
 }
 
@@ -85,6 +86,7 @@ void FreeMatrix(double **m,short nrl,short nrh,
 			    short ncl,short nch)
 {
   short i;
+  (void)nch;
   
   for(i=nrh;i>=nrl;i--) free((char*) (m[i]+ncl));
   free((char*) (m+nrl));

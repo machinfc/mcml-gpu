@@ -60,7 +60,26 @@
  ****
  *	Dimension of length: cm.
  *
+ ****
+ *	HPC Modernization (OpenMP & NVIDIA CUDA GPU Acceleration):
+ *	Frank Corrales Machín (@frankcm)
+ *	Based on the Radiative Transport Equation (RTE) Monte Carlo
+ *	formulation for Photodynamic Therapy (PDT) dosimetry in
+ *	biological and tumoral tissues:
+ *
+ *	(3) N. López-Marín, F. Corrales-Machín, E. Castro-Alvarez,
+ *	and R. Rodríguez-Fernández, "Light Transport in Biological
+ *	Tissues Using GPU," Revista Cubana de Física, Vol. 33,
+ *	No. 2, pp. 122-126 (2016).
+ *
+ *	(4) F. Corrales Machín, "Simulación del transporte de luz en
+ *	una capa de tejido utilizando el método de Monte Carlo,"
+ *	B.Sc. Thesis, Facultad de Física, Univ. de La Habana (2015).
+ *
  ****/
+
+#ifndef MCML_H
+#define MCML_H
 
 #include <math.h>
 #include <stdlib.h>
@@ -194,6 +213,10 @@ typedef struct {
   double    Tt;		/* total transmittance. [-] */
 } OutStruct;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***********************************************************
  *	Routine prototypes for dynamic memory allocation and 
  *	release of arrays and matrices.
@@ -204,3 +227,40 @@ double **AllocMatrix(short, short,short, short);
 void 	 FreeVector(double *, short, short);
 void 	 FreeMatrix(double **, short, short, short, short);
 void 	 nrerror(char *);
+
+/***********************************************************
+ *	Core simulation, physics, and I/O prototypes.
+ ****/
+void 	 ShowVersion(char *version);
+FILE 	*GetFile(char *Fname);
+short 	 ReadNumRuns(FILE *File_Ptr);
+void 	 ReadParm(FILE *File_Ptr, InputStruct *In_Ptr);
+void 	 CheckParm(FILE *File_Ptr, InputStruct *In_Ptr);
+void 	 InitOutputData(InputStruct In_Parm, OutStruct *Out_Ptr);
+void 	 FreeData(InputStruct In_Parm, OutStruct *Out_Ptr);
+double 	 Rspecular(LayerStruct *Layerspecs_Ptr);
+void 	 LaunchPhoton(double Rspecular, LayerStruct *Layerspecs_Ptr, PhotonStruct *Photon_Ptr);
+double 	 RandomNum(void);
+double 	 SpinTheta(double g);
+void 	 Spin(double g, PhotonStruct *Photon_Ptr);
+void 	 Hop(PhotonStruct *Photon_Ptr);
+void 	 StepSizeInGlass(PhotonStruct *Photon_Ptr, InputStruct *In_Ptr);
+void 	 StepSizeInTissue(PhotonStruct *Photon_Ptr, InputStruct *In_Ptr);
+Boolean  HitBoundary(PhotonStruct *Photon_Ptr, InputStruct *In_Ptr);
+void 	 Drop(InputStruct *In_Ptr, PhotonStruct *Photon_Ptr, OutStruct *Out_Ptr);
+void 	 Roulette(PhotonStruct *Photon_Ptr);
+double 	 RFresnel(double n1, double n2, double ca1, double *ca2_Ptr);
+void 	 HopDropSpin(InputStruct *In_Ptr, PhotonStruct *Photon_Ptr, OutStruct *Out_Ptr);
+void 	 SumScaleResult(InputStruct In_Parm, OutStruct *Out_Ptr);
+void 	 WriteResult(InputStruct In_Parm, OutStruct Out_Parm, char *TimeReport);
+
+#ifdef ENABLE_CUDA
+Boolean  InitDeviceCUDA(void);
+Boolean  RunSimulationCUDA(InputStruct *In_Ptr, OutStruct *Out_Ptr);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MCML_H */

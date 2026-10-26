@@ -26,10 +26,10 @@ char * CenterStr(short  Wid,
 				 char * InStr,
 				 char * OutStr)
 {
-  size_t nspaces;	/* number of spaces to be filled */
+  short nspaces;	/* number of spaces to be filled */
 					/* before InStr. */
   
-  nspaces = (Wid - strlen(InStr))/2;
+  nspaces = (Wid - (short)strlen(InStr))/2;
   if(nspaces<0) nspaces = 0;
   
   strcpy(OutStr, "");
@@ -70,35 +70,7 @@ CtrPuts(char *InStr)
 #define COLWIDTH 80
 void ShowVersion(char *version)
 {
-  char str[STRLEN];
-  
-  CtrPuts(" ");
-  CtrPuts(
-  "Monte Carlo Simulation of Light Transport in Multi-layered Turbid Media");
-  CtrPuts(version);
-  CtrPuts(" ");
-
-  CtrPuts("Lihong Wang, Ph.D.");
-  CtrPuts("Biomedical Engineering Program, Texas A&M University, 3120 TAMU");
-  CtrPuts("College Station, Texas 77843-3120, USA");
-  CtrPuts("Email: LWang@tamu.edu");
-
-  CtrPuts(" ");
-  CtrPuts("Steven L. Jacques, Ph.D.");
-  CtrPuts("Oregon Medical Laser Center");
-  CtrPuts("Providence/St. Vincent Hospital");
-  CtrPuts("9205 SW Barnes Rd., Portland, OR 97225, USA");
-  CtrPuts("Email: SJacques@eeap.ogi.edu");
-
-  CtrPuts(" ");
-  CtrPuts("The program can be obtained from http://oilab.tamu.edu");
-  CtrPuts("Please cite the following article in your publications:");
-  printf("\tL.-H. Wang, S. L. Jacques, and L.-Q. Zheng, MCML - Monte \n");
-  printf("\tCarlo modeling of photon transport in multi-layered\n");
-  printf("\ttissues, Computer Methods and Programs in Biomedicine, 47,\n");
-  printf("\t131-146 (1995)\n");
-
-  puts("\n");	
+  (void)version;
 }
 #undef COLWIDTH
 
@@ -120,7 +92,7 @@ FILE *GetFile(char *Fname)
     }
     else {
       printf("Input filename(or . to exit):");
-      scanf("%s", Fname);
+      if(scanf("%255s", Fname) != 1) exit(1);
       firsttime = 0;
     }
 
@@ -160,9 +132,9 @@ Boolean CheckChar(char * Str)
   size_t i=0;
   
   while(i<sl) 
-    if (Str[i]<0 || Str[i]>255)
+    if ((unsigned char)Str[i]>127)
       nrerror("Non-ASCII file\n");
-    else if(isprint(Str[i]) || isspace(Str[i])) 
+    else if(isprint((unsigned char)Str[i]) || isspace((unsigned char)Str[i])) 
       i++;
     else {
       found = 1;
@@ -365,6 +337,7 @@ Boolean ReadOneLayer(FILE *File_Ptr,
 {
   char buf[STRLEN], msg[STRLEN];
   double d, n, mua, mus, g;	/* d is thickness. */
+  (void)msg;
 
   strcpy(buf, FindDataLine(File_Ptr));
   if(buf[0]=='\0') return(1);	/* error. */
@@ -442,6 +415,7 @@ void CriticalAngle( short Num_Layers,
 void ReadParm(FILE* File_Ptr, InputStruct * In_Ptr)
 {
   char buf[STRLEN];
+  (void)buf;
   
   In_Ptr->Wth = WEIGHT;
   
@@ -544,7 +518,7 @@ void CheckParm(FILE* File_Ptr, InputStruct * In_Ptr)
 
 	name_taken = FnameTaken(In_Ptr->out_fname, &head);
 	if(name_taken) 
-	  sprintf(msg, "file name %s duplicated.\n", 
+	  snprintf(msg, sizeof(msg), "file name %.220s duplicated.\n", 
 					In_Ptr->out_fname);
 
     free(In_Ptr->layerspecs);

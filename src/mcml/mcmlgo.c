@@ -6,6 +6,9 @@
  ****/
 
 #include "mcml.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #define STANDARDTEST 0
   /* testing program using fixed rnd seed. */
@@ -33,6 +36,9 @@ float ran3(int *idum)
   static int inext,inextp;
   static long ma[56];
   static int iff=0;
+#ifdef _OPENMP
+#pragma omp threadprivate(inext, inextp, ma, iff)
+#endif
   long mj,mk;
   int i,ii,k;
   
@@ -83,13 +89,22 @@ double RandomNum(void)
 {
   static Boolean first_time=1;
   static int idum;	/* seed for ran3. */
+#ifdef _OPENMP
+#pragma omp threadprivate(first_time, idum)
+#endif
   
   if(first_time) {
 #if STANDARDTEST /* Use fixed seed to test the program. */
     idum = - 1;
 #else
+#ifdef _OPENMP
+    idum = -(((int)time(NULL) + 104729 * (omp_get_thread_num() + 1)) % (1<<15));
+    if (idum >= 0) idum = -(omp_get_thread_num() + 1);
+#else
     idum = -(int)time(NULL)%(1<<15);
 	  /* use 16-bit integer as the seed. */
+    if (idum == 0) idum = -1;
+#endif
 #endif
     ran3(&idum);
     first_time = 0;
@@ -323,7 +338,7 @@ void StepSizeInTissue(PhotonStruct * Photon_Ptr,
 Boolean HitBoundary(PhotonStruct *  Photon_Ptr,
 					InputStruct  *  In_Ptr)
 {
-  double dl_b;  /* length to boundary. */
+  double dl_b = 0.0;  /* length to boundary. */
   short  layer = Photon_Ptr->layer;
   double uz = Photon_Ptr->uz;
   Boolean hit;
@@ -389,6 +404,9 @@ void Drop(InputStruct  *	In_Ptr,
   Photon_Ptr->w -= dwa;
   
   /* assign dwa to the absorption array element. */
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
   Out_Ptr->A_rz[ir][iz]	+= dwa;
 }
 
@@ -497,6 +515,9 @@ void RecordR(double			Refl,	/* reflectance. */
   else ia = iad;
   
   /* assign photon to the reflection array element. */
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
   Out_Ptr->Rd_ra[ir][ia] += Photon_Ptr->w*(1.0-Refl);
   
   Photon_Ptr->w *= Refl;
@@ -528,6 +549,9 @@ void RecordT(double 		Refl,
   else ia = iad;
   
   /* assign photon to the transmittance array element. */
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
   Out_Ptr->Tt_ra[ir][ia] += Photon_Ptr->w*(1.0-Refl);
   
   Photon_Ptr->w *= Refl;
@@ -685,6 +709,7 @@ void HopInGlass(InputStruct  * In_Ptr,
 				OutStruct    * Out_Ptr)
 {
   double dl;     /* step size. 1/cm */
+  (void)dl;
   
   if(Photon_Ptr->uz == 0.0) { 
 	/* horizontal photon in glass is killed. */

@@ -144,3 +144,7 @@ env/
 *.log
 *.bak
 /tmp/
+
+# Local Mathematica notebooks
+scripts/notebooks/
+*.nb

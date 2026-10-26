@@ -1,0 +1,4 @@
+# GitHub Linguist language classification rules
+include/*.h linguist-language=C
+scripts/notebooks/** linguist-vendored
+*.nb linguist-vendored

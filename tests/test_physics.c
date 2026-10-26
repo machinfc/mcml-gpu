@@ -157,6 +157,63 @@ static void test_energy_conservation(void)
   FreeData(in_parm, &out_parm);
 }
 
+#ifdef ENABLE_CUDA
+static void test_cuda_hotspot_large_grid(void)
+{
+  InputStruct in_parm;
+  OutStruct out_parm;
+  double total_energy;
+
+  if (!InitDeviceCUDA()) {
+    printf("[SKIP] No CUDA GPU detected for large-grid hot-spot test\n");
+    return;
+  }
+
+  /* Basal Cell Carcinoma 630nm optical parameters on a 100x100 grid (10,000
+   * bins > 4,096 shared-memory limit), exercising SHARED_MODE=2 (64x64
+   * hot-spot sub-grid privatization) + persistent in-loop photon respawning. */
+  memset(&in_parm, 0, sizeof(in_parm));
+  in_parm.num_photons = 100000;
+  in_parm.Wth = WEIGHT;
+  in_parm.dz = 0.002;
+  in_parm.dr = 0.004;
+  in_parm.nz = 100;
+  in_parm.nr = 100;
+  in_parm.na = 1;
+  in_parm.da = 0.5 * PI / in_parm.na;
+  in_parm.num_layers = 1;
+
+  in_parm.layerspecs = (LayerStruct *)malloc(3 * sizeof(LayerStruct));
+  assert(in_parm.layerspecs != NULL);
+
+  in_parm.layerspecs[0].n = 1.0;
+  in_parm.layerspecs[1].n = 1.37;
+  in_parm.layerspecs[1].mua = 1.7;
+  in_parm.layerspecs[1].mus = 125.0;
+  in_parm.layerspecs[1].g = 0.80;
+  in_parm.layerspecs[1].z0 = 0.0;
+  in_parm.layerspecs[1].z1 = 0.20;
+  in_parm.layerspecs[1].cos_crit0 = sqrt(1.0 - 1.0 / (1.37 * 1.37));
+  in_parm.layerspecs[1].cos_crit1 = sqrt(1.0 - 1.0 / (1.37 * 1.37));
+  in_parm.layerspecs[2].n = 1.0;
+
+  InitOutputData(in_parm, &out_parm);
+  out_parm.Rsp = Rspecular(in_parm.layerspecs);
+
+  assert(RunSimulationCUDA(&in_parm, &out_parm) == 1);
+
+  SumScaleResult(in_parm, &out_parm);
+  total_energy = out_parm.Rsp + out_parm.Rd + out_parm.A + out_parm.Tt;
+
+  ASSERT_NEAR(total_energy, 1.000000, 0.002,
+              "CUDA large-grid hot-spot energy (Rsp+Rd+A+Tt=1)");
+  ASSERT_NEAR(out_parm.A, 0.575, 0.01,
+              "CUDA BCC 630nm absorbed fraction (A ~ 0.575)");
+
+  FreeData(in_parm, &out_parm);
+}
+#endif
+
 int main(void)
 {
   printf("=== Running MCML Physics & Unit Test Suite ===\n");
@@ -165,6 +222,9 @@ int main(void)
   test_fresnel_boundary();
   test_henyey_greenstein_moment();
   test_energy_conservation();
+#ifdef ENABLE_CUDA
+  test_cuda_hotspot_large_grid();
+#endif
   printf("=== All Physics Verification Tests Passed ===\n");
   return 0;
 }

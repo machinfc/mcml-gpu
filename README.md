@@ -89,7 +89,8 @@ All benchmarks below evaluate the **Basal Cell Carcinoma (BCC) Photodynamic Ther
 | **1. Serial CPU (`S02` Baseline)** | `GCC -O3 -march=native -ffast-math` (1 Thread) | `6,367.0 s` (~1.77 hr) | `1.57 × 10⁵ ph/s` | `1.00×` |
 | **2. OpenMP Physical Cores** | `OpenMP` (`--cpu --threads 6`, 6 Physical Cores) | `1,747.0 s` (~29.1 min) | `5.72 × 10⁵ ph/s` | `3.64×` |
 | **3. OpenMP Full SMT** | `OpenMP` (`--cpu --threads 12`, 12 Logical Threads) | `1,632.0 s` (~27.2 min) | `6.13 × 10⁵ ph/s` | `3.90×` |
-| **4. NVIDIA CUDA GPU** | `GeForce RTX 2060` (`--gpu`, `sm_75`, 30 SMs) | **`596.0 s` (~9.9 min)** | **`1.68 × 10⁶ ph/s`** | **`10.68×`** |
+| **4. NVIDIA CUDA GPU (Static Stride)** | `GeForce RTX 2060` (`sm_75`, Global Atomics on $400\times 800$) | `567.3 s` (~9.5 min) | `1.76 × 10⁶ ph/s` | `11.22×` |
+| **5. NVIDIA CUDA GPU (Phase 1 Opt.)** | `GeForce RTX 2060` (Persistent Work-Queue + `64×64` `__shared__` Hot-Spot) | **`498.9 s` (~8.3 min)** | **`2.00 × 10⁶ ph/s`** | **`12.76×` (`49.7×` vs `S02`)** |
 
 #### B. OpenMP Strong Scaling ($N = 10^9$ Photons — Intel® Core™ i7-9750H)
 
@@ -135,20 +136,23 @@ Measured in [Corrales-Machín (2015)](#references--citation) and [López-Marín 
 
 ### ✅ Implemented & Verified
 - **Multi-Layer Generalization of the Tumoral GPU Transport Model**: Implements the recommendations from [Corrales-Machín (2015)](#references--citation) and [López-Marín et al. (2016)](#references--citation), extending single-layer Basal Cell Carcinoma ($\lambda = 630\text{ nm}$) transport to arbitrary multi-layered tissues with Fresnel/Snell boundary crossings and critical-angle total internal reflection (TIR).
+- **Persistent In-Loop Photon Respawning & Dynamic Batch Work-Queue (`src/mcml/mcmlgpu.cu`)**: Resolves SIMT warp lifetime divergence (where 31 lanes in a 32-thread warp previously idled waiting for the longest-lived photon packet to finish its `while (!p.dead)` loop). Terminated lanes immediately claim and initialize a fresh photon from an atomic batch queue (`WORK_BATCH_SIZE = 64`), keeping all 32 warp lanes continuously active.
+- **Shared-Memory Hot-Spot Sub-Grid Privatization (`64 × 64` Sub-Grid Cache)**: Resolves shared-memory spillover on large clinical grids (`nr * nz > 4,096`, such as the $400 \times 800$ BCC grid in `data/bcc_tumor_630nm.mci`). Each thread block caches the high-contention subsurface pencil-beam entry core ($i_r < 64, i_z < 64$, 32 KB `__shared__` memory) in on-chip SRAM and flushes once to global memory on kernel exit, cutting $10^9$-photon execution time by an additional **13.7%** (`567.3 s` $\to$ `498.9 s`).
 - **Dual Execution Backends (OpenMP CPU + NVIDIA CUDA GPU)**:
-  - **CUDA Kernel (`src/mcml/mcmlgpu.cu`)**: Combines in-kernel multi-photon iteration (`A02`/`A06` paradigm), `__constant__` memory layer tables, register-resident `SplitMix64` + `xorshift64*` PRNG, and dynamic `__shared__` memory histogram privatization (up to 32 KB/block).
+  - **CUDA Kernel (`src/mcml/mcmlgpu.cu`)**: `__constant__` memory layer tables, register-resident `SplitMix64` + `xorshift64*` PRNG, full-grid (`SHARED_MODE=1`) and hot-spot (`SHARED_MODE=2`) shared-memory privatization.
   - **OpenMP Backend (`src/mcml/mcmlgo.c`, `src/mcml/mcmlmain.c`)**: Thread-private PRNG state (`#pragma omp threadprivate`), dynamic work-stealing (`schedule(dynamic, 1024)`), and CLI thread control (`--threads <N>`).
-- **Automated CTest & CI Pipeline**: Unit tests for Fresnel optics, Henyey-Greenstein moments, and radiative energy conservation, tested on GitHub Actions across GCC and Clang.
+- **Automated CTest & CI Pipeline**: Unit and GPU verification tests for Fresnel optics, Henyey-Greenstein moments, large-grid hot-spot privatization, and radiative energy conservation, tested on GitHub Actions across GCC and Clang.
 - **Strict Local Data Isolation**: `.gitignore` blocks all personal simulation outputs (`*.mco`, `results/`, `benchmarks/results/`).
 
 ### 🚧 In Progress
 - **Finite-Beam Convolution Post-Processor (`src/conv/`)**: Legacy Gaussian and flat-top circular beam convolution code (`convconv.c`, `extra.c`) is preserved in the repository tree and being refactored to replace deprecated C89 `gets()` calls with `fgets()`.
 
 ### ❌ Not Yet Optimized / Known Architectural Bottlenecks
-- **Warp Branch Divergence in Multi-Layer CUDA**: Because photon path lengths and boundary crossings are stochastic, threads within a 32-thread GPU warp diverge when packets reside in different tissue layers or undergo Russian roulette termination.
-- **Large-Grid Shared-Memory Spillover**: When `nr * nz + 2 * nr * na > 4,096` bins (exceeding 32 KB of double-precision shared memory per block, such as the $400 \times 800$ grid in `data/bcc_tumor_630nm.mci`), the CUDA kernel automatically falls back to global `atomicAdd(double*, double)`, which increases L2 atomic contention near the incident axis $r \to 0$.
-- **Double-Precision vs. Single-Precision ALU Throughput**: Consumer Turing GPUs (such as the GeForce RTX 2060) have a 1:32 FP64-to-FP32 throughput ratio compared to data-center Tesla GPUs. Introducing a compile-time `MCML_FLOAT` (`FP32`) mode will unlock an additional $4\times\text{–}8\times$ GPU speedup.
-- **16-Bit Grid Index Ceiling**: Grid dimensions (`nz`, `nr`, `na`) use `short` integers, limiting each axis to `32,767` bins.
+- **Double-Precision vs. Single-Precision ALU Throughput**: Consumer Turing GPUs (such as the GeForce RTX 2060) have a 1:32 FP64-to-FP32 throughput ratio compared to data-center Tesla GPUs. Introducing a compile-time `MCML_FLOAT` (`FP32` kinematics + `FP64` global accumulators) mode will unlock an additional $3\times\text{–}6\times$ GPU speedup.
+- **16-Bit Grid Index Ceiling**: Grid dimensions (`nz`, `nr`, `na`) currently use `short` integers, limiting each axis to `32,767` bins.
+- **Inter-Layer SIMT Branch Divergence within Active Steps**: While persistent in-loop respawning eliminates idle-lane lifetime divergence, threads within a warp that simultaneously reside in different tissue layers or take different boundary vs. interior scattering branches still serialize conditional execution paths within a single step.
+- **Outer-Radius Global Atomic Fallback ($i_r \ge 64$ or $i_z \ge 64$)**: While the $64 \times 64$ `__shared__` hot-spot cache absorbs the highest-contention pencil-beam entry core, diffuse photons scattering beyond $r \ge 64\Delta r$ or $z \ge 64\Delta z$ still issue global `atomicAdd(double*, double)` transactions to L2 cache.
+- **Single-GPU Execution (No Multi-GPU / MPI Domain Decomposition)**: Currently dispatches to a single CUDA device; multi-GPU node scaling requires host-side OpenMP/MPI domain partitioning across devices.
 
 ---
 

@@ -83,10 +83,13 @@ In López-Marín, Corrales-Machín et al. (2016) and Corrales-Machín (2015), fi
 - **`A06` (Fast-Math ALU Intrinsics)**: Combines `A02` with hardware fast-math transcendental intrinsics (`--use_fast_math`).
 - **`A07` / `A09` (Multi-GPU + Pinned Memory)**: Distributes `A06` across dual GPUs with page-locked host memory.
 
-**`mcml-gpu` (v1.4)** fulfills the three future-work recommendations formulated in Chapter 5 of Corrales-Machín (2015):
+**`mcml-gpu` (v1.4)** fulfills the three future-work recommendations formulated in Chapter 5 of Corrales-Machín (2015) and extends them with Turing-generation SIMT optimizations:
 1. **Multi-Layer Tissue Generalization**: Supports arbitrary $L$-layer tissue stacks with exact Fresnel reflection/refraction and precomputed critical angles (`cos_crit0`, `cos_crit1`).
 2. **Modernized PRNG Architecture**: Replaces heavy `cuRAND XORWOW` state arrays on the GPU with register-resident 64-bit `SplitMix64` + `xorshift64*` per thread, and thread-private `ran3` streams (`#pragma omp threadprivate`) on the CPU.
-3. **Shared-Memory Histogram Privatization (`src/mcml/mcmlgpu.cu`)**: For grids fitting within 32 KB of on-chip shared memory (`extern __shared__ double s_mem[]`), threads accumulate weights in L1/Shared Memory per SM block and flush to global VRAM once at kernel completion, eliminating global atomic serialization.
+3. **Dual-Mode Shared-Memory Histogram Privatization (`src/mcml/mcmlgpu.cu`)**:
+   - **`SHARED_MODE = 1` (Full-Grid Caching)**: For compact grids ($\le 4,096$ bins, 32 KB), the entire `A_rz`, `Rd_ra`, and `Tt_ra` arrays reside in on-chip `__shared__` memory per thread block.
+   - **`SHARED_MODE = 2` (`64 × 64` Hot-Spot Sub-Grid Privatization)**: For large clinical grids (such as the $400 \times 800$ Basal Cell Carcinoma grid), each block privatizes the high-contention $64 \times 64$ subsurface pencil-beam entry core ($i_r < 64, i_z < 64$) in 32 KB of `__shared__` SRAM, flushing to global VRAM once at kernel exit.
+4. **Persistent In-Loop Photon Respawning (Dynamic Batch Work-Queue)**: Instead of stalling 31 warp lanes inside a nested `while (!p.dead)` loop until the longest-lived photon terminates, any lane whose photon dies immediately claims a new photon from an atomic batch queue (`WORK_BATCH_SIZE = 64`) on the next step iteration, keeping all 32 warp lanes continuously active.
 
 ### 3.2 Scaling Law & Statistical Equivalence Metrics
 - **Linear Execution-Time Scaling Law**:

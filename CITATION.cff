@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+title: "mcml-gpu: High-Performance Monte Carlo Light Transport in Biological Tissues (OpenMP & CUDA)"
+message: "If you use this software in your research, please cite the following publications."
+type: software
+authors:
+  - family-names: "Corrales-Machín"
+    given-names: "Frank"
+    alias: "frankcm"
+    affiliation: "Facultad de Física, Universidad de La Habana"
+repository-code: "https://github.com/frankcm/mcml-gpu"
+license: MIT
+keywords:
+  - monte-carlo-simulation
+  - radiative-transport-equation
+  - photodynamic-therapy
+  - biomedical-optics
+  - cuda
+  - openmp
+  - gpu-computing
+preferred-citation:
+  type: article
+  title: "Light Transport in Biological Tissues Using GPU"
+  authors:
+    - family-names: "López-Marín"
+      given-names: "N."
+    - family-names: "Corrales-Machín"
+      given-names: "F."
+    - family-names: "Castro-Alvarez"
+      given-names: "E."
+    - family-names: "Rodríguez-Fernández"
+      given-names: "R."
+  journal: "Revista Cubana de Física"
+  volume: 33
+  issue: 2
+  start: 122
+  end: 126
+  year: 2016
+references:
+  - type: thesis
+    title: "Simulación del transporte de luz en una capa de tejido utilizando el método de Monte Carlo"
+    authors:
+      - family-names: "Corrales Machín"
+        given-names: "Frank"
+    institution: "Facultad de Física, Universidad de La Habana"
+    year: 2015
+    thesis-type: "B.Sc. Diploma Thesis"
+  - type: article
+    title: "MCML — Monte Carlo modeling of photon transport in multi-layered tissues"
+    authors:
+      - family-names: "Wang"
+        given-names: "Lihong"
+      - family-names: "Jacques"
+        given-names: "Steven L."
+      - family-names: "Zheng"
+        given-names: "L.-Q."
+    journal: "Computer Methods and Programs in Biomedicine"
+    volume: 47
+    issue: 2
+    start: 131
+    end: 146
+    year: 1995

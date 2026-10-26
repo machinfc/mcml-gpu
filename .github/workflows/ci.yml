@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [Release, Debug]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install toolchain dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libomp-dev cmake python3
+
+      - name: Configure CMake (${{ matrix.compiler }} - ${{ matrix.build_type }})
+        env:
+          CC: ${{ matrix.compiler }}
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DENABLE_OPENMP=ON \
+            -DENABLE_CUDA=OFF \
+            -DBUILD_TESTING=ON
+
+      - name: Build targets
+        run: cmake --build build --parallel
+
+      - name: Run CTest unit and integration suite
+        working-directory: build
+        run: ctest --output-on-failure --verbose
+
+      - name: Verify physical energy conservation on smoke test output
+        run: |
+          test -f build/test.mco
+          python3 scripts/validate_mco.py build/test.mco 0.005

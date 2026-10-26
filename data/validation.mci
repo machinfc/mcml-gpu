@@ -1,0 +1,21 @@
+####
+# Reference Validation Input — Wang, Jacques, & Zheng (1995)
+# Semi-infinite / turbid slab benchmark for diffuse reflectance (Rd),
+# internal absorption (A), and total transmittance (Tt).
+# Lengths in cm, mua and mus in 1/cm.
+####
+
+1.0						# file version
+1						# number of runs
+
+### Run 1: Standard Turbid Slab Benchmark (1,000,000 photons)
+validation.mco	A				# output filename, ASCII format
+1000000						# No. of photons
+0.002	0.005					# dz, dr [cm]
+50	100	30				# nz, nr, na
+
+1						# No. of layers
+# n	mua	mus	g	d		# Layer specification
+1.0						# Top ambient medium (air)
+1.5	10.0	90.0	0.75	0.02		# Turbid slab
+1.0						# Bottom ambient medium (air)

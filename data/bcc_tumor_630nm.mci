@@ -1,0 +1,26 @@
+####
+# Basal Cell Carcinoma (BCC) Photodynamic Therapy (PDT) Model at 630 nm
+# Reference:
+#   N. Lopez-Marin, F. Corrales-Machin, E. Castro-Alvarez, R. Rodriguez-Fernandez,
+#   "Light Transport in Biological Tissues Using GPU",
+#   Revista Cubana de Fisica, Vol. 33, No. 2, pp. 122-126 (2016).
+# Optical parameters from Salomatina et al., J. Biomed. Opt. 11(6), 064026 (2006)
+# for human basal cell carcinoma at lambda = 630 nm:
+#   n = 1.37, mua = 1.7 cm^-1, mus = 125 cm^-1, g = 0.80, d = 0.20 cm
+# Grid resolution: dz = 0.0005 cm, dr = 0.0005 cm (400 depth bins x 800 radial bins)
+####
+
+1.0						# file version
+1						# number of runs
+
+### Run 1: Basal Cell Carcinoma Monolayer (10^9 photons)
+bcc_630nm.mco	A				# output filename, ASCII format
+1000000000					# No. of photon packets (10^9)
+0.0005	0.0005					# dz, dr [cm]
+400	800	1				# nz (0.2 cm), nr (0.4 cm), na
+
+1						# No. of tissue layers
+# n	mua	mus	g	d		# Layer optical specification
+1.0						# Top ambient medium (air)
+1.37	1.7	125.0	0.80	0.20		# Basal cell carcinoma at 630 nm
+1.0						# Bottom ambient medium (air)

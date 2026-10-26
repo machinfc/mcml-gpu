@@ -5,9 +5,9 @@ type: software
 authors:
   - family-names: "Corrales-Machín"
     given-names: "Frank"
-    alias: "frankcm"
-    affiliation: "Facultad de Física, Universidad de La Habana"
-repository-code: "https://github.com/frankcm/mcml-gpu"
+    alias: "machinfc"
+    affiliation: "Instituto de Geofísica y Astronomía / Universidad de La Habana"
+repository-code: "https://github.com/machinfc/mcml-gpu"
 license: MIT
 keywords:
   - monte-carlo-simulation

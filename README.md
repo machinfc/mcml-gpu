@@ -1,6 +1,6 @@
 # mcml-gpu
 
-[![CI](https://github.com/frankcm/mcml-gpu/actions/workflows/ci.yml/badge.svg)](https://github.com/frankcm/mcml-gpu/actions/workflows/ci.yml)
+[![CI](https://github.com/machinfc/mcml-gpu/actions/workflows/ci.yml/badge.svg)](https://github.com/machinfc/mcml-gpu/actions/workflows/ci.yml)
 [![Standard: C99](https://img.shields.io/badge/C-C99-00599C.svg?logo=c&logoColor=white)](https://en.wikipedia.org/wiki/C99)
 [![CUDA: sm_75+](https://img.shields.io/badge/CUDA-sm__75%2B-76B900.svg?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![Parallel: OpenMP](https://img.shields.io/badge/Parallel-OpenMP-success.svg)](https://www.openmp.org/)
@@ -29,7 +29,7 @@ Designed for **Photodynamic Therapy (PDT) light dosimetry** and tissue optics wh
 
 ```bash
 # 1. Clone and enter the repository
-git clone https://github.com/frankcm/mcml-gpu.git
+git clone https://github.com/machinfc/mcml-gpu.git
 cd mcml-gpu
 
 # 2. Configure and build in Release mode (auto-detects OpenMP and NVIDIA nvcc)

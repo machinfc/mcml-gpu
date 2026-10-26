@@ -32,7 +32,7 @@ When a collimated laser beam strikes a layered medium, photon packets in `mcml-g
 
 ```bash
 # 1. Clone and enter the repository
-git clone https://github.com/frankcm/mcml-gpu.git
+git clone https://github.com/machinfc/mcml-gpu.git
 cd mcml-gpu
 
 # 2. Configure the out-of-source Release build

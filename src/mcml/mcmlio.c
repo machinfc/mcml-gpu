@@ -270,7 +270,7 @@ void ReadNzNrNa(FILE *File_Ptr, InputStruct *In_Ptr)
   strcpy(buf, FindDataLine(File_Ptr));
   if(buf[0]=='\0') 
 	nrerror("Reading number of dz, dr, da's.\n");
-  sscanf(buf, "%hd%hd%hd", 
+  sscanf(buf, "%d%d%d", 
 	&In_Ptr->nz, &In_Ptr->nr, &In_Ptr->na);
   if(In_Ptr->nz<=0) 
 	nrerror("Nonpositive number of dz's.\n");
@@ -536,9 +536,9 @@ void CheckParm(FILE* File_Ptr, InputStruct * In_Ptr)
 void InitOutputData(InputStruct In_Parm, 
 					OutStruct * Out_Ptr)
 {
-  short nz = In_Parm.nz;
-  short nr = In_Parm.nr;
-  short na = In_Parm.na;
+  int nz = In_Parm.nz;
+  int nr = In_Parm.nr;
+  int na = In_Parm.na;
   short nl = In_Parm.num_layers;	
   /* remember to use nl+2 because of 2 for ambient. */
   
@@ -571,9 +571,9 @@ void InitOutputData(InputStruct In_Parm,
  ****/
 void FreeData(InputStruct In_Parm, OutStruct * Out_Ptr)
 {
-  short nz = In_Parm.nz;
-  short nr = In_Parm.nr;
-  short na = In_Parm.na;
+  int nz = In_Parm.nz;
+  int nr = In_Parm.nr;
+  int na = In_Parm.na;
   short nl = In_Parm.num_layers;	
   /* remember to use nl+2 because of 2 for ambient. */
   
@@ -597,9 +597,9 @@ void FreeData(InputStruct In_Parm, OutStruct * Out_Ptr)
  ****/
 void Sum2DRd(InputStruct In_Parm, OutStruct * Out_Ptr)
 {
-  short nr = In_Parm.nr;
-  short na = In_Parm.na;
-  short ir,ia;
+  int nr = In_Parm.nr;
+  int na = In_Parm.na;
+  int ir,ia;
   double sum;
   
   for(ir=0; ir<nr; ir++)  {
@@ -625,7 +625,7 @@ void Sum2DRd(InputStruct In_Parm, OutStruct * Out_Ptr)
  *
  *	Use the center of box.
  ****/
-short IzToLayer(short Iz, InputStruct In_Parm)
+short IzToLayer(int Iz, InputStruct In_Parm)
 {
   short i=1;	/* index to layer. */
   short num_layers = In_Parm.num_layers;
@@ -642,9 +642,9 @@ short IzToLayer(short Iz, InputStruct In_Parm)
  ****/
 void Sum2DA(InputStruct In_Parm, OutStruct * Out_Ptr)
 {
-  short nz = In_Parm.nz;
-  short nr = In_Parm.nr;
-  short iz,ir;
+  int nz = In_Parm.nz;
+  int nr = In_Parm.nr;
+  int iz,ir;
   double sum;
   
   for(iz=0; iz<nz; iz++)  {
@@ -667,9 +667,9 @@ void Sum2DA(InputStruct In_Parm, OutStruct * Out_Ptr)
  ****/
 void Sum2DTt(InputStruct In_Parm, OutStruct * Out_Ptr)
 {
-  short nr = In_Parm.nr;
-  short na = In_Parm.na;
-  short ir,ia;
+  int nr = In_Parm.nr;
+  int na = In_Parm.na;
+  int ir,ia;
   double sum;
   
   for(ir=0; ir<nr; ir++)  {
@@ -710,11 +710,11 @@ void Sum2DTt(InputStruct In_Parm, OutStruct * Out_Ptr)
  ****/
 void ScaleRdTt(InputStruct In_Parm, OutStruct *	Out_Ptr)
 {
-  short nr = In_Parm.nr;
-  short na = In_Parm.na;
+  int nr = In_Parm.nr;
+  int na = In_Parm.na;
   double dr = In_Parm.dr;
   double da = In_Parm.da;
-  short ir,ia;
+  int ir,ia;
   double scale1, scale2;
   
   scale1 = 4.0*PI*PI*dr*sin(da/2)*dr*In_Parm.num_photons;
@@ -756,12 +756,12 @@ void ScaleRdTt(InputStruct In_Parm, OutStruct *	Out_Ptr)
  ****/
 void ScaleA(InputStruct In_Parm, OutStruct * Out_Ptr)
 {
-  short nz = In_Parm.nz;
-  short nr = In_Parm.nr;
+  int nz = In_Parm.nz;
+  int nr = In_Parm.nr;
   double dz = In_Parm.dz;
   double dr = In_Parm.dr;
   short nl = In_Parm.num_layers;
-  short iz,ir;
+  int iz,ir;
   short il;
   double scale1;
   
@@ -836,7 +836,7 @@ void WriteInParm(FILE *file, InputStruct In_Parm)
   
   fprintf(file, 
 	"%G\t%G\t\t# dz, dr [cm]\n", In_Parm.dz,In_Parm.dr);
-  fprintf(file, "%hd\t%hd\t%hd\t# No. of dz, dr, da.\n\n", 
+  fprintf(file, "%d\t%d\t%d\t# No. of dz, dr, da.\n\n", 
 	  In_Parm.nz, In_Parm.nr, In_Parm.na);
   
   fprintf(file, 
@@ -900,11 +900,11 @@ void WriteA_layer(FILE * file,
  *	5 numbers each line.
  ****/
 void WriteRd_ra(FILE * file, 
-				short Nr,
-				short Na,
+				int Nr,
+				int Na,
 				OutStruct Out_Parm)
 {
-  short ir, ia;
+  int ir, ia;
   
   fprintf(file, 
 	  "%s\n%s\n%s\n%s\n%s\n%s\n",	/* flag. */
@@ -918,7 +918,7 @@ void WriteRd_ra(FILE * file,
   for(ir=0;ir<Nr;ir++)
     for(ia=0;ia<Na;ia++)  {
       fprintf(file, "%12.4E ", Out_Parm.Rd_ra[ir][ia]);
-      if( (ir*Na + ia + 1)%5 == 0) fprintf(file, "\n");
+      if( ((long)ir*(long)Na + ia + 1)%5 == 0) fprintf(file, "\n");
     }
   
   fprintf(file, "\n");
@@ -928,10 +928,10 @@ void WriteRd_ra(FILE * file,
  *	1 number each line.
  ****/
 void WriteRd_r(FILE * file, 
-			   short Nr,
+			   int Nr,
 			   OutStruct Out_Parm)
 {
-  short ir;
+  int ir;
   
   fprintf(file, 
 	"Rd_r #Rd[0], [1],..Rd[nr-1]. [1/cm2]\n");	/* flag. */
@@ -947,10 +947,10 @@ void WriteRd_r(FILE * file,
  *	1 number each line.
  ****/
 void WriteRd_a(FILE * file, 
-			   short Na,
+			   int Na,
 			   OutStruct Out_Parm)
 {
-  short ia;
+  int ia;
   
   fprintf(file, 
 	"Rd_a #Rd[0], [1],..Rd[na-1]. [sr-1]\n");	/* flag. */
@@ -966,11 +966,11 @@ void WriteRd_a(FILE * file,
  *	5 numbers each line.
  ****/
 void WriteTt_ra(FILE * file, 
-				short Nr,
-				short Na,
+				int Nr,
+				int Na,
 				OutStruct Out_Parm)
 {
-  short ir, ia;
+  int ir, ia;
   
   fprintf(file, 
 	  "%s\n%s\n%s\n%s\n%s\n%s\n",	/* flag. */
@@ -984,7 +984,7 @@ void WriteTt_ra(FILE * file,
   for(ir=0;ir<Nr;ir++)
     for(ia=0;ia<Na;ia++)  {
       fprintf(file, "%12.4E ", Out_Parm.Tt_ra[ir][ia]);
-      if( (ir*Na + ia + 1)%5 == 0) fprintf(file, "\n");
+      if( ((long)ir*(long)Na + ia + 1)%5 == 0) fprintf(file, "\n");
     }
   
   fprintf(file, "\n");
@@ -994,11 +994,11 @@ void WriteTt_ra(FILE * file,
  *	5 numbers each line.
  ****/
 void WriteA_rz(FILE * file, 
-			   short Nr,
-			   short Nz,
+			   int Nr,
+			   int Nz,
 			   OutStruct Out_Parm)
 {
-  short iz, ir;
+  int iz, ir;
   
   fprintf(file, 
 	  "%s\n%s\n%s\n%s\n%s\n%s\n", /* flag. */
@@ -1012,7 +1012,7 @@ void WriteA_rz(FILE * file,
   for(ir=0;ir<Nr;ir++)
     for(iz=0;iz<Nz;iz++)  {
       fprintf(file, "%12.4E ", Out_Parm.A_rz[ir][iz]);
-      if( (ir*Nz + iz + 1)%5 == 0) fprintf(file, "\n");
+      if( ((long)ir*(long)Nz + iz + 1)%5 == 0) fprintf(file, "\n");
     }
   
   fprintf(file, "\n");
@@ -1022,10 +1022,10 @@ void WriteA_rz(FILE * file,
  *	1 number each line.
  ****/
 void WriteA_z(FILE * file, 
-			  short Nz,
+			  int Nz,
 			  OutStruct Out_Parm)
 {
-  short iz;
+  int iz;
   
   fprintf(file, 
 	"A_z #A[0], [1],..A[nz-1]. [1/cm]\n");	/* flag. */
@@ -1041,10 +1041,10 @@ void WriteA_z(FILE * file,
  *	1 number each line.
  ****/
 void WriteTt_r(FILE * file, 
-			   short Nr,
+			   int Nr,
 			   OutStruct Out_Parm)
 {
-  short ir;
+  int ir;
   
   fprintf(file, 
 	"Tt_r #Tt[0], [1],..Tt[nr-1]. [1/cm2]\n"); /* flag. */
@@ -1060,10 +1060,10 @@ void WriteTt_r(FILE * file,
  *	1 number each line.
  ****/
 void WriteTt_a(FILE * file, 
-			   short Na,
+			   int Na,
 			   OutStruct Out_Parm)
 {
-  short ia;
+  int ia;
   
   fprintf(file, 
 	"Tt_a #Tt[0], [1],..Tt[na-1]. [sr-1]\n"); /* flag. */

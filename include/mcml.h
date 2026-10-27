@@ -169,9 +169,9 @@ typedef struct {
   double dr;				/* r grid separation.[cm] */
   double da;				/* alpha grid separation. */
 							/* [radian] */
-  short nz;					/* array range 0..nz-1. */
-  short nr;					/* array range 0..nr-1. */
-  short na;					/* array range 0..na-1. */
+  int nz;					/* array range 0..nz-1 (32-bit index). */
+  int nr;					/* array range 0..nr-1 (32-bit index). */
+  int na;					/* array range 0..na-1 (32-bit index). */
   
   short	num_layers;			/* number of layers. */
   LayerStruct * layerspecs;	/* layer parameters. */	
@@ -220,12 +220,12 @@ extern "C" {
 /***********************************************************
  *	Routine prototypes for dynamic memory allocation and 
  *	release of arrays and matrices.
- *	Modified from Numerical Recipes in C.
+ *	Modified from Numerical Recipes in C (upgraded to 32-bit int).
  ****/
-double  *AllocVector(short, short);
-double **AllocMatrix(short, short,short, short);
-void 	 FreeVector(double *, short, short);
-void 	 FreeMatrix(double **, short, short, short, short);
+double  *AllocVector(int, int);
+double **AllocMatrix(int, int, int, int);
+void 	 FreeVector(double *, int, int);
+void 	 FreeMatrix(double **, int, int, int, int);
 void 	 nrerror(char *);
 
 /***********************************************************
@@ -256,6 +256,7 @@ void 	 WriteResult(InputStruct In_Parm, OutStruct Out_Parm, char *TimeReport);
 
 #ifdef ENABLE_CUDA
 Boolean  InitDeviceCUDA(void);
+void     SetPrecisionCUDA(Boolean use_fp64);
 Boolean  RunSimulationCUDA(InputStruct *In_Ptr, OutStruct *Out_Ptr);
 #endif
 

@@ -157,6 +157,19 @@ static void test_energy_conservation(void)
   FreeData(in_parm, &out_parm);
 }
 
+static void test_32bit_grid_indexing(void)
+{
+  /* Verify 32-bit grid index support beyond the legacy 16-bit short ceiling
+   * (32,767) by allocating and indexing a 40,000-element vector. */
+  const int large_nz = 40000;
+  double *vec = AllocVector(0, large_nz - 1);
+  assert(vec != NULL);
+  vec[large_nz - 1] = 1.0;
+  ASSERT_NEAR(vec[large_nz - 1], 1.0, 1e-12,
+              "32-bit grid index allocation (nz = 40,000 > 32,767)");
+  FreeVector(vec, 0, large_nz - 1);
+}
+
 #ifdef ENABLE_CUDA
 static void test_cuda_hotspot_large_grid(void)
 {
@@ -171,7 +184,8 @@ static void test_cuda_hotspot_large_grid(void)
 
   /* Basal Cell Carcinoma 630nm optical parameters on a 100x100 grid (10,000
    * bins > 4,096 shared-memory limit), exercising SHARED_MODE=2 (64x64
-   * hot-spot sub-grid privatization) + persistent in-loop photon respawning. */
+   * hot-spot sub-grid privatization) + persistent in-loop photon respawning
+   * across both Mixed FP32/FP64 and Full FP64 modes. */
   memset(&in_parm, 0, sizeof(in_parm));
   in_parm.num_photons = 100000;
   in_parm.Wth = WEIGHT;
@@ -197,19 +211,42 @@ static void test_cuda_hotspot_large_grid(void)
   in_parm.layerspecs[1].cos_crit1 = sqrt(1.0 - 1.0 / (1.37 * 1.37));
   in_parm.layerspecs[2].n = 1.0;
 
+  /* 1. Test Default Mixed FP32/FP64 Mode */
+  SetPrecisionCUDA(0);
   InitOutputData(in_parm, &out_parm);
   out_parm.Rsp = Rspecular(in_parm.layerspecs);
-
   assert(RunSimulationCUDA(&in_parm, &out_parm) == 1);
-
   SumScaleResult(in_parm, &out_parm);
   total_energy = out_parm.Rsp + out_parm.Rd + out_parm.A + out_parm.Tt;
-
   ASSERT_NEAR(total_energy, 1.000000, 0.002,
-              "CUDA large-grid hot-spot energy (Rsp+Rd+A+Tt=1)");
+              "CUDA Mixed FP32/FP64 energy (Rsp+Rd+A+Tt=1)");
   ASSERT_NEAR(out_parm.A, 0.575, 0.01,
-              "CUDA BCC 630nm absorbed fraction (A ~ 0.575)");
+              "CUDA Mixed FP32/FP64 BCC 630nm absorption (A~0.575)");
+  FreeData(in_parm, &out_parm);
 
+  /* 2. Test Full FP64 Mode */
+  in_parm.layerspecs = (LayerStruct *)malloc(3 * sizeof(LayerStruct));
+  assert(in_parm.layerspecs != NULL);
+  in_parm.layerspecs[0].n = 1.0;
+  in_parm.layerspecs[1].n = 1.37;
+  in_parm.layerspecs[1].mua = 1.7;
+  in_parm.layerspecs[1].mus = 125.0;
+  in_parm.layerspecs[1].g = 0.80;
+  in_parm.layerspecs[1].z0 = 0.0;
+  in_parm.layerspecs[1].z1 = 0.20;
+  in_parm.layerspecs[1].cos_crit0 = sqrt(1.0 - 1.0 / (1.37 * 1.37));
+  in_parm.layerspecs[1].cos_crit1 = sqrt(1.0 - 1.0 / (1.37 * 1.37));
+  in_parm.layerspecs[2].n = 1.0;
+
+  SetPrecisionCUDA(1);
+  InitOutputData(in_parm, &out_parm);
+  out_parm.Rsp = Rspecular(in_parm.layerspecs);
+  assert(RunSimulationCUDA(&in_parm, &out_parm) == 1);
+  SumScaleResult(in_parm, &out_parm);
+  total_energy = out_parm.Rsp + out_parm.Rd + out_parm.A + out_parm.Tt;
+  ASSERT_NEAR(total_energy, 1.000000, 0.002,
+              "CUDA Full FP64 energy (Rsp+Rd+A+Tt=1)");
+  SetPrecisionCUDA(0);
   FreeData(in_parm, &out_parm);
 }
 #endif
@@ -222,6 +259,7 @@ int main(void)
   test_fresnel_boundary();
   test_henyey_greenstein_moment();
   test_energy_conservation();
+  test_32bit_grid_indexing();
 #ifdef ENABLE_CUDA
   test_cuda_hotspot_large_grid();
 #endif

@@ -139,11 +139,13 @@ void ReportResult(InputStruct In_Parm, OutStruct Out_Parm)
 }
 
 static Boolean UseGPU = 0;
+static Boolean UseFP64 = 0; /* 0 = Mixed FP32/FP64 (default fast GPU), 1 = Full FP64 */
 
 /***********************************************************
  *	Get the file name of the input data file from the 
  *	argument to the command line, along with optional
- *	execution flags (--gpu, --cpu, --threads <N> / -t <N>).
+ *	execution flags (--gpu, --cpu, --fp32, --fp64,
+ *	--threads <N> / -t <N>).
  ****/
 void GetFnameFromArgv(int argc,
 					  char * argv[],
@@ -164,6 +166,10 @@ void GetFnameFromArgv(int argc,
       UseGPU = 1;
     } else if (strcmp(argv[i], "--cpu") == 0 || strcmp(argv[i], "--omp") == 0) {
       UseGPU = 0;
+    } else if (strcmp(argv[i], "--fp64") == 0) {
+      UseFP64 = 1;
+    } else if (strcmp(argv[i], "--fp32") == 0) {
+      UseFP64 = 0;
     } else if ((strcmp(argv[i], "--threads") == 0 ||
                 strcmp(argv[i], "-t") == 0) &&
                i + 1 < argc) {
@@ -203,6 +209,7 @@ void DoOneRun(short NumRuns, InputStruct *In_Ptr)
 
 #ifdef ENABLE_CUDA
   if (UseGPU) {
+    SetPrecisionCUDA(UseFP64);
     InitDeviceCUDA();
   }
 #endif

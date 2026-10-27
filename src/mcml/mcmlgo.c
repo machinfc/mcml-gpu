@@ -384,18 +384,18 @@ void Drop(InputStruct  *	In_Ptr,
   double x = Photon_Ptr->x;
   double y = Photon_Ptr->y;
   double izd, ird;	/* LW 5/20/98. To avoid out of short range.*/
-  short  iz, ir;	/* index to z & r. */
+  int    iz, ir;	/* 32-bit index to z & r. */
   short  layer = Photon_Ptr->layer;
   double mua, mus;		
   
   /* compute array indices. */
   izd = Photon_Ptr->z/In_Ptr->dz;
   if(izd>In_Ptr->nz-1) iz=In_Ptr->nz-1;
-  else iz = izd;
+  else iz = (int)izd;
   
   ird = sqrt(x*x+y*y)/In_Ptr->dr;
   if(ird>In_Ptr->nr-1) ir=In_Ptr->nr-1;
-  else ir = ird;
+  else ir = (int)ird;
   
   /* update photon weight. */
   mua = In_Ptr->layerspecs[layer].mua;
@@ -503,16 +503,16 @@ void RecordR(double			Refl,	/* reflectance. */
 {
   double x = Photon_Ptr->x;
   double y = Photon_Ptr->y;
-  short  ir, ia;	/* index to r & angle. */
+  int    ir, ia;	/* 32-bit index to r & angle. */
   double ird, iad;	/* LW 5/20/98. To avoid out of short range.*/
   
   ird = sqrt(x*x+y*y)/In_Ptr->dr;
   if(ird>In_Ptr->nr-1) ir=In_Ptr->nr-1;
-  else ir = ird;
+  else ir = (int)ird;
   
   iad = acos(-Photon_Ptr->uz)/In_Ptr->da;
   if(iad>In_Ptr->na-1) ia=In_Ptr->na-1;
-  else ia = iad;
+  else ia = (int)iad;
   
   /* assign photon to the reflection array element. */
 #ifdef _OPENMP
@@ -537,16 +537,16 @@ void RecordT(double 		Refl,
 {
   double x = Photon_Ptr->x;
   double y = Photon_Ptr->y;
-  short  ir, ia;	/* index to r & angle. */
+  int    ir, ia;	/* 32-bit index to r & angle. */
   double ird, iad;	/* LW 5/20/98. To avoid out of short range.*/
   
   ird = sqrt(x*x+y*y)/In_Ptr->dr;
   if(ird>In_Ptr->nr-1) ir=In_Ptr->nr-1;
-  else ir = ird;
+  else ir = (int)ird;
   
   iad = acos(Photon_Ptr->uz)/In_Ptr->da; /* LW 1/12/2000. Removed -. */
   if(iad>In_Ptr->na-1) ia=In_Ptr->na-1;
-  else ia = iad;
+  else ia = (int)iad;
   
   /* assign photon to the transmittance array element. */
 #ifdef _OPENMP

@@ -90,6 +90,7 @@ In López-Marín, Corrales-Machín et al. (2016) and Corrales-Machín (2015), fi
    - **`SHARED_MODE = 1` (Full-Grid Caching)**: For compact grids ($\le 4,096$ bins, 32 KB), the entire `A_rz`, `Rd_ra`, and `Tt_ra` arrays reside in on-chip `__shared__` memory per thread block.
    - **`SHARED_MODE = 2` (`64 × 64` Hot-Spot Sub-Grid Privatization)**: For large clinical grids (such as the $400 \times 800$ Basal Cell Carcinoma grid), each block privatizes the high-contention $64 \times 64$ subsurface pencil-beam entry core ($i_r < 64, i_z < 64$) in 32 KB of `__shared__` SRAM, flushing to global VRAM once at kernel exit.
 4. **Persistent In-Loop Photon Respawning (Dynamic Batch Work-Queue)**: Instead of stalling 31 warp lanes inside a nested `while (!p.dead)` loop until the longest-lived photon terminates, any lane whose photon dies immediately claims a new photon from an atomic batch queue (`WORK_BATCH_SIZE = 64`) on the next step iteration, keeping all 32 warp lanes continuously active.
+5. **Mixed-Precision Fast-Math GPU Kinematics (`--fp32` Default / `--fp64` Optional) & 32-Bit Grid Indexing**: Evaluates photon step sizes, Henyey-Greenstein scattering, and Fresnel optics using 32-bit `FP32` ALUs, hardware Special Function Units (`__logf`, `__sincosf`, `__fdividef`, `rsqrtf`), and precomputed constant-memory reciprocals, while accumulating all absorbed/reflected/transmitted weights in strict 64-bit `FP64` (`double`) across 32-bit `int` cylindrical grids.
 
 ### 3.2 Scaling Law & Statistical Equivalence Metrics
 - **Linear Execution-Time Scaling Law**:

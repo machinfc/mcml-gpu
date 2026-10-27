@@ -42,6 +42,9 @@ cmake --build build --parallel
 
 # 4. Run Basal Cell Carcinoma (BCC) PDT dosimetry model at 630 nm (10^9 photons)
 ./build/mcml --gpu data/bcc_tumor_630nm.mci
+
+# 5. Convolve pencil-beam .mco impulse response with a finite Gaussian or flat-top laser beam
+./build/conv build/test.mco build/test_convolved.dat --beam gaussian --power 1.0 --radius 0.1
 ```
 ---
 
@@ -49,10 +52,10 @@ cmake --build build --parallel
 
 ### Running the Automated Test Suite
 
-The CTest suite runs unit tests on the optical physics engine (`tests/test_physics.c` — PRNG uniformity, analytical Fresnel specular reflectance, total internal reflection, Henyey-Greenstein first moment $\langle\cos\Theta\rangle = g$), an OpenMP CPU integration test, and a CUDA GPU integration test:
+The CTest suite runs unit tests on the optical physics engine (`tests/test_physics.c` — PRNG uniformity, analytical Fresnel specular reflectance, total internal reflection, Henyey-Greenstein first moment $\langle\cos\Theta\rangle = g$, 32-bit grid allocation, modified Bessel $e^{-x}I_0(x)$ scaling, and flat/Gaussian finite-beam radial convolution), an OpenMP CPU integration test, a CUDA GPU integration test, and a finite-beam `conv` CLI integration test:
 
 ```bash
-# Run all unit, OpenMP CPU, and CUDA GPU tests
+# Run all unit, OpenMP CPU, CUDA GPU, and finite-beam convolution tests
 ctest --test-dir build --output-on-failure --verbose
 
 # Validate radiative energy conservation (Rsp + Rd + A + Tt = 1.0) on any output file
@@ -141,11 +144,9 @@ Measured in [Corrales-Machín (2015)](#references--citation) and [López-Marín 
 - **Shared-Memory Hot-Spot Sub-Grid Privatization (`64 × 64` Sub-Grid Cache)**: Resolves shared-memory spillover on large clinical grids (`nr * nz > 4,096`, such as the $400 \times 800$ BCC grid in `data/bcc_tumor_630nm.mci`). Each thread block caches the high-contention subsurface pencil-beam entry core ($i_r < 64, i_z < 64$, 32 KB `__shared__` memory) in on-chip SRAM and flushes once to global memory on kernel exit.
 - **Mixed-Precision Fast-Math GPU Kinematics (`--fp32` Default) & Full `FP64` Mode (`--fp64`)**: Unlocks the 32:1 `FP32`-to-`FP64` throughput advantage and Special Function Units (`__logf`, `__sincosf`, `__fdividef`, `rsqrtf`) on consumer NVIDIA Turing GPUs while accumulating all absorbed, reflected, and transmitted energy weights in strict 64-bit `FP64` (`double`). Reduces $10^9$-photon clinical simulation time on a single GeForce RTX 2060 from `498.9 s` (`--fp64`) to **`75.1 s`** (`--fp32`, **`84.8×`** faster than single-core i7-9750H and **`330.1×`** faster than `S02`).
 - **32-Bit Cylindrical Grid Indexing (`int` / `size_t`)**: Eliminates the legacy 16-bit `short` grid ceiling (`32,767` bins) across `InputStruct`, memory allocators (`mcmlnr.c`), I/O parsers (`mcmlio.c`), and CPU/GPU kernels.
-- **Automated CTest & CI Pipeline**: Unit and GPU verification tests for Fresnel optics, Henyey-Greenstein moments, 32-bit grid allocation ($> 32,767$ bins), large-grid hot-spot privatization, and radiative energy conservation across both `Mixed FP32/FP64` and `Full FP64` modes.
-- **Strict Local Data Isolation**: `.gitignore` blocks all personal simulation outputs (`*.mco`, `results/`, `benchmarks/results/`).
-
-### 🚧 In Progress
-- **Finite-Beam Convolution Post-Processor (`src/conv/`)**: Legacy Gaussian and flat-top circular beam convolution code (`convconv.c`, `extra.c`) is preserved in the repository tree and being refactored to replace deprecated C89 `gets()` calls with `fgets()`.
+- **Finite-Beam Convolution Post-Processor (`src/conv/` $\rightarrow$ `build/conv`)**: Standalone C99 utility and library routines that convolve pencil-beam `.mco` impulse responses (`A_rz`, `Rd_r`, `Tt_r`) against finite-radius Gaussian ($\text{TEM}_{00}$) and circular flat-top laser beams using adaptive Simpson quadrature (`qtrap`/`qsimp`) and scaled modified Bessel functions ($e^{-x}I_0(x)$). Replaces all deprecated C89 `gets()` calls with bounds-checked `fgets()` and fixes two legacy bugs in `convconv.c` (`A_rzInterp` stub return and missing `Gaussian` branch in `ConvA_rz`).
+- **Automated CTest & CI Pipeline**: Unit and GPU verification tests for Fresnel optics, Henyey-Greenstein moments, 32-bit grid allocation ($> 32,767$ bins), modified Bessel and radial beam convolution integrals, large-grid hot-spot privatization, and radiative energy conservation across both `Mixed FP32/FP64` and `Full FP64` modes.
+- **Strict Local Data Isolation**: `.gitignore` blocks all personal simulation outputs (`*.mco`, `*.dat`, `results/`, `benchmarks/results/`).
 
 ### ❌ Not Yet Optimized / Known Architectural Bottlenecks
 - **Inter-Layer SIMT Branch Divergence within Active Steps**: While persistent in-loop respawning eliminates idle-lane lifetime divergence, threads within a warp that simultaneously reside in different tissue layers or take different boundary vs. interior scattering branches still serialize conditional execution paths within a single step.
@@ -182,16 +183,19 @@ mcml-gpu/
 │   └── validate_mco.py          # Automated radiative energy conservation verifier
 ├── src/
 │   ├── mcml/
-│   │   ├── mcmlmain.c           # CLI entry point (--gpu, --cpu, --threads) & timer
-│   │   ├── mcmlgpu.cu           # NVIDIA CUDA kernel (constant + shared memory, xorshift64*)
+│   │   ├── mcmlmain.c           # CLI entry point (--gpu, --cpu, --fp32, --fp64, --threads)
+│   │   ├── mcmlgpu.cu           # NVIDIA CUDA kernel (Persistent queue, 64x64 shared hot-spot, Mixed FP32/FP64)
 │   │   ├── mcmlgo.c             # OpenMP CPU Hop-Drop-Spin kernel & thread-safe ran3
 │   │   ├── mcmlio.c             # Input parser, parameter validator & ASCII serializer
 │   │   └── mcmlnr.c             # Zero-initialized vector/matrix memory allocators
-│   └── conv/                    # Finite-beam convolution post-processor (WIP)
+│   └── conv/
+│       ├── convmain.c           # Finite-beam convolution CLI tool (build/conv)
+│       ├── convconv.c           # Gaussian & flat-top radial Hankel/Bessel convolution engine
+│       └── extra.c              # Adaptive Simpson quadrature (qtrap/qsimp) & Bessel I0
 ├── tests/
 │   └── test_physics.c           # C99 unit & physics verification test suite
 ├── .editorconfig
-├── .gitignore                   # Excludes all local .mco simulation outputs & build files
+├── .gitignore                   # Excludes all local .mco/.dat simulation outputs & build files
 ├── CITATION.cff                 # GitHub citation metadata for published papers
 ├── CMakeLists.txt               # CMake >= 3.18 build (OpenMP + auto-detected CUDA sm_75)
 ├── CONTRIBUTING.md              # Contribution guidelines & engineering roadmap

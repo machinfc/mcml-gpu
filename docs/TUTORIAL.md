@@ -81,30 +81,50 @@ You can set the exact number of CPU threads in **two ways**:
 Pass `--gpu` (or `--cuda`, or set `MCML_BACKEND=cuda`):
 
 ```bash
-# Run quick smoke test on the NVIDIA CUDA GPU
+# Run quick smoke test on the NVIDIA CUDA GPU (Mixed FP32/FP64 default)
 ./build/mcml --gpu data/test.mci
 
-# Run the Basal Cell Carcinoma (630 nm, 10^9 photons) simulation on the GPU
+# Run the Basal Cell Carcinoma (630 nm, 10^9 photons) simulation on the GPU (~75 s on RTX 2060)
 ./build/mcml --gpu data/bcc_tumor_630nm.mci
+
+# Optional: Force full 64-bit FP64 kinematics (--fp64) instead of default Mixed FP32/FP64 (--fp32)
+./build/mcml --gpu --fp64 data/bcc_tumor_630nm.mci
 ```
 
-When running on the GPU, `mcml` prints the detected hardware profile:
+When running on the GPU, `mcml` prints the detected hardware profile and precision mode:
 ```text
-[Backend] NVIDIA CUDA GPU (NVIDIA GeForce RTX 2060, Compute Capability 7.5, 30 SMs)
+[Backend] NVIDIA CUDA GPU (NVIDIA GeForce RTX 2060, Compute Capability 7.5, 30 SMs, Mixed FP32/FP64)
 ```
 
 ---
 
-## 4. Running Automated Tests & Benchmarks
+## 4. Finite-Beam Convolution Post-Processor (`build/conv`)
+
+Because `mcml` simulates an infinitely narrow collimated **pencil beam** ($\delta(r)$ impulse response), physical laser irradiance profiles of finite radius $R$ and incident energy $P$ ($\text{J}$) are obtained by convolving the `.mco` Green's function (`A_rz`, `Rd_r`, `Tt_r`) using `build/conv`:
+
+```bash
+# Convolve with a 1.0 J Gaussian (TEM00) laser beam of 1/e^2 radius R = 0.10 cm
+./build/conv build/test.mco results/test_gaussian.dat --beam gaussian --power 1.0 --radius 0.10
+
+# Convolve with a 2.5 J circular flat-top beam of radius R = 0.25 cm
+./build/conv build/test.mco results/test_flat.dat --beam flat --power 2.5 --radius 0.25
+```
+
+The output `.dat` file contains the 3-column tab-separated spatial distribution `r[cm]`, `z[cm]`, and `A_rzc[J/cm3]`, plus radial diffuse reflectance `Rd_rc[J/cm2]` and transmittance `Tt_rc[J/cm2]`.
+
+---
+
+## 5. Running Automated Tests & Benchmarks
 
 ### Run Unit & Integration Tests (CTest)
 ```bash
 ctest --test-dir build --output-on-failure --verbose
 ```
 This runs:
-1. `unit_physics_tests`: Verifies PRNG uniformity, analytical Fresnel reflectance, total internal reflection, Henyey-Greenstein moments, and energy conservation.
+1. `unit_physics_tests`: Verifies PRNG uniformity, analytical Fresnel reflectance, total internal reflection, Henyey-Greenstein moments, 32-bit grid allocation ($n_z = 40,000$), modified Bessel $e^{-x}I_0(x)$ scaling, flat-beam radial convolution, and CUDA `Mixed FP32/FP64` & `Full FP64` radiative energy conservation.
 2. `integration_smoke_test_cpu`: Verifies the OpenMP CPU backend.
-3. `integration_smoke_test_gpu`: Verifies the NVIDIA CUDA GPU backend (when built with CUDA).
+3. `integration_smoke_test_gpu`: Verifies the NVIDIA CUDA GPU backend.
+4. `integration_finite_beam_conv`: Verifies the `build/conv` Gaussian finite-beam post-processor on `test.mco`.
 
 ### Run the Scaling & GPU Benchmark Suite
 ```bash
@@ -117,7 +137,7 @@ MCML_BENCH_PHOTONS=1000000 MCML_WEAK_PHOTONS_PER_THREAD=250000 ./benchmarks/run_
 
 ---
 
-## 5. Running Custom Simulations Without Committing Results
+## 6. Running Custom Simulations Without Committing Results
 
 1. Create a local `results/` directory (automatically ignored by [`.gitignore`](../.gitignore)):
    ```bash

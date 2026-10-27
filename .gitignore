@@ -39,6 +39,7 @@ _deps/
 *.mco
 *.mco2
 *.mco3
+*.dat
 *.Frzc
 *.Frz
 *.Arzc

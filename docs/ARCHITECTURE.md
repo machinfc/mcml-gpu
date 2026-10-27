@@ -91,6 +91,7 @@ In López-Marín, Corrales-Machín et al. (2016) and Corrales-Machín (2015), fi
    - **`SHARED_MODE = 2` (`64 × 64` Hot-Spot Sub-Grid Privatization)**: For large clinical grids (such as the $400 \times 800$ Basal Cell Carcinoma grid), each block privatizes the high-contention $64 \times 64$ subsurface pencil-beam entry core ($i_r < 64, i_z < 64$) in 32 KB of `__shared__` SRAM, flushing to global VRAM once at kernel exit.
 4. **Persistent In-Loop Photon Respawning (Dynamic Batch Work-Queue)**: Instead of stalling 31 warp lanes inside a nested `while (!p.dead)` loop until the longest-lived photon terminates, any lane whose photon dies immediately claims a new photon from an atomic batch queue (`WORK_BATCH_SIZE = 64`) on the next step iteration, keeping all 32 warp lanes continuously active.
 5. **Mixed-Precision Fast-Math GPU Kinematics (`--fp32` Default / `--fp64` Optional) & 32-Bit Grid Indexing**: Evaluates photon step sizes, Henyey-Greenstein scattering, and Fresnel optics using 32-bit `FP32` ALUs, hardware Special Function Units (`__logf`, `__sincosf`, `__fdividef`, `rsqrtf`), and precomputed constant-memory reciprocals, while accumulating all absorbed/reflected/transmitted weights in strict 64-bit `FP64` (`double`) across 32-bit `int` cylindrical grids.
+6. **Finite-Beam Radial Convolution Post-Processor (`src/conv/` $\rightarrow$ `build/conv`)**: Convolves pencil-beam `.mco` Green's functions ($A_{rz}, R_{d,r}, T_{t,r}$) with circular flat-top or Gaussian ($\text{TEM}_{00}$) laser irradiance profiles using adaptive Simpson quadrature (`qtrap`/`qsimp`) and scaled modified Bessel functions ($e^{-x}I_0(x)$).
 
 ### 3.2 Scaling Law & Statistical Equivalence Metrics
 - **Linear Execution-Time Scaling Law**:
@@ -107,9 +108,14 @@ In López-Marín, Corrales-Machín et al. (2016) and Corrales-Machín (2015), fi
 | File | Target | Responsibility |
 | :--- | :--- | :--- |
 | [`include/mcml.h`](../include/mcml.h) | Header | Core data structures (`PhotonStruct`, `LayerStruct`, `InputStruct`, `OutStruct`) and C/CUDA API |
-| [`src/mcml/mcmlmain.c`](../src/mcml/mcmlmain.c) | `mcml` | CLI parser (`--gpu`, `--cpu`, `--threads`), OpenMP dynamic loop, and wall-clock timing |
-| [`src/mcml/mcmlgpu.cu`](../src/mcml/mcmlgpu.cu) | `mcml_core` | NVIDIA CUDA kernel (`__constant__` layers, `xorshift64*` PRNG, `__shared__` privatization) |
+| [`include/conv.h`](../include/conv.h) | Header | Finite-beam convolution data structures (`BeamStruct`, `InputConvStruct`, `OutConvStruct`) |
+| [`include/extra.h`](../include/extra.h) | Header | Adaptive Simpson quadrature (`qtrap`, `qsimp`) and modified Bessel $e^{-x}I_0(x)$ prototypes |
+| [`src/mcml/mcmlmain.c`](../src/mcml/mcmlmain.c) | `mcml` | CLI parser (`--gpu`, `--cpu`, `--fp32`, `--fp64`, `--threads`), OpenMP loop, and timing |
+| [`src/mcml/mcmlgpu.cu`](../src/mcml/mcmlgpu.cu) | `mcml_core` | NVIDIA CUDA kernel (Persistent work-queue, `64×64` `__shared__` hot-spot, Mixed `FP32/FP64`) |
 | [`src/mcml/mcmlgo.c`](../src/mcml/mcmlgo.c) | `mcml_core` | CPU Hop-Drop-Spin physics engine, Fresnel optics, and OpenMP `threadprivate` RNG |
 | [`src/mcml/mcmlio.c`](../src/mcml/mcmlio.c) | `mcml_core` | `.mci` parser, cylindrical ring volume normalization (`ScaleA`, `ScaleRdTt`), and `.mco` writer |
 | [`src/mcml/mcmlnr.c`](../src/mcml/mcmlnr.c) | `mcml_core` | Zero-initialized 1D vector and 2D matrix dynamic memory allocators |
-| [`tests/test_physics.c`](../tests/test_physics.c) | `test_physics` | Automated CTest suite verifying PRNG, Fresnel TIR, Henyey-Greenstein moments, and energy conservation |
+| [`src/conv/convmain.c`](../src/conv/convmain.c) | `conv` | Standalone CLI tool (`./build/conv`) for Gaussian and flat-top finite-beam convolution |
+| [`src/conv/convconv.c`](../src/conv/convconv.c) | `mcml_core` | Radial Bessel/Hankel convolution engine (`ConvA_rz`, `ConvRd_r`, `ConvTt_r`, `ReadMcoFile`) |
+| [`src/conv/extra.c`](../src/conv/extra.c) | `mcml_core` | Modified Bessel function `BesselI0`, `expBesselI0`, and adaptive Simpson quadrature |
+| [`tests/test_physics.c`](../tests/test_physics.c) | `test_physics` | Automated CTest suite verifying PRNG, Fresnel TIR, HG moments, 32-bit grids, Bessel/convolution, and GPU energy conservation |

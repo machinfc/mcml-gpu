@@ -1,194 +1,115 @@
 /***********************************************************
  *	Program Name: conv.
  *
- *	A program used to process the data from mcml -
- *	A Monte Carlo simulation of photon distribution in
- *	multi-layered turbid media in ANSI Standard C.
- ****
- *	Creation Date:	11/1991.
- *	Current Date:	6/1992.
- *
- *	Lihong Wang, Ph. D.
- *	Steven L. Jacques, Ph. D.
- *	Laser Biology Research Laboratory - 17
- *	M.D. Anderson Cancer Center
- *	University of Texas
- *	1515 Holcombe Blvd.
- *	Houston, TX 77030
- *	USA
- *
- ****
- *	General Naming Conventions:
- *	Preprocessor names: all capital letters,
- *		e.g. #define PREPROCESSORS
- *	Globals: first letter of each word is capital, no
- *		underscores,
- *		e.g. short GlobalVar;
- *	Dummy variables:  first letter of each word is capital,
- *		and words are connected by underscores,
- *		e.g. void NiceFunction(char Dummy_Var);
- *	Local variables:  all lower cases, words are connected
- *		by underscores,
- *		e.g. short local_var;
- *	Function names or data types:  same as Globals.
- *
- ****
- *	Dimension of length: cm.
- *
+ *	Finite-beam convolution post-processor for MCML
+ *	(Flat-top circular and Gaussian laser beams).
  ****/
 
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <time.h>
-#include <string.h>
-#include <ctype.h>
+#ifndef CONV_H
+#define CONV_H
+
+#include "mcml.h"
 #include <float.h>
 #include <limits.h>
 
-#define PI 3.1415926
-#define STRLEN 256		/* String length. */
-
-#define Boolean char
-
-#define SIGN(x) ((x)>=0 ? 1:-1)
-#define MAX(x, y) ((x)>(y) ? (x):(y))
-#define MIN(x, y) ((x)<(y) ? (x):(y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 #define NULLCONVSTRUCT {0, 0, 0, 0, 0}
-#define NULLOUTSTRUCT {0.0,\
-		NULL,NULL,NULL,0.0,\
-		NULL,NULL,NULL,0.0,\
-		NULL,NULL,NULL,0.0,\
-		NULL,NULL,NULL,NULL,NULL,\
-		0, NULLCONVSTRUCT}
+#define NULLOUTSTRUCT                                                          \
+  {0.0,  NULL, NULL, NULL, 0.0,  NULL, NULL, NULL, 0.0,           NULL,        \
+   NULL, NULL, 0.0,  NULL, NULL, NULL, NULL, NULL, 0,   NULLCONVSTRUCT}
 
-/****************** Stuctures *****************************/
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/****
- *	Structure used to describe the geometry and optical
- *	properties of a layer.
- *	z0 and z1 are the z coordinates for the upper boundary
- *	and lower boundary respectively.
- ****/
+typedef enum { pencil, flat, gaussian } BeamType;
 
-/****
- *	Input parameters for each independent run.
- *
- *	z and r are for the cylindrical coordinate system. [cm]
- *	a is for the angle alpha between the photon exiting
- *	direction and the surface normal. [radian]
- *
- *	The grid line separations in z, r, and alpha
- *	directions are dz, dr, and da respectively.  The numbers
- *	of grid lines in z, r, and alpha directions are
- *	nz, nr, and na respectively.
- *
- *	The member layerspecs will point to an array of
- *	structures which store parameters of each layer.
- *	This array has (number_layers + 2) elements. One
- *	element is for a layer.
- *	The layers 0 and (num_layers + 1) are for top ambient
- *	medium and the bottom ambient medium respectively.
- *
- *	For convolution, the grid line separations in z, and alpha
- *	directions are still dz, and da respectively.  The numbers
- *	of grid lines in z, and alpha directions are still
- *	nz, and na respectively. However, the grid line separation
- *	and the number of grid lines in r direction are drc and
- *	nrc respectively.
- ****/
-  
-
-/****
- *	Structure to keep track of what quantities are convolved.
- *	They are initialized to 0, and are set to 1 when the
- *	represented quantity is convolved.
- *
- *	When the beam profile is changed, they are all reset to 0.
- ****/
 typedef struct {
-  Boolean     Rd_ra;
-  Boolean     Rd_r;
-  Boolean     A_rz;
-  Boolean     Tt_ra;
-  Boolean     Tt_r;
-}           ConvStruct;
+  BeamType type;
+  double P; /* Total incident laser beam energy [J] */
+  double R; /* Beam radius (flat-top radius or 1/e^2 Gaussian radius) [cm] */
+} BeamStruct;
 
-/****
- *	Structures for scored physical quantities
- *	from mcml and to be convolved for photon
- *	beams of finite size.  Therefore, "Out"
- *	here means the output of both mcml and conv.
- *
- *	The member allocated is used to keep the status
- *	of the arrays.  It is set to 1 if all the arrays
- *	are allocated and assigned values.  It is set to
- *	0 otherwise.
- *
- *	z and r represent z and r coordinates of the
- *	cylindrical coordinate system. [cm]
- *	a is the angle alpha between the photon exiting
- *	direction and the normal to the surfaces. [radian]
- *	See comments of the InputStruct.
- *	See manual for the physcial quantities.
- ****/
 typedef struct {
-  double      Rsp;		/* specular reflectance. [-] */
-  double    **Rd_ra;		/* 2D distribution of diffuse */
-  /* reflectance. [1/(cm2 sr)] */
-  double     *Rd_r;		/* 1D radial distribution of diffuse */
-  /* reflectance. [1/cm2] */
-  double     *Rd_a;		/* 1D angular distribution of diffuse */
-  /* reflectance. [1/sr] */
-  double      Rd;		/* total diffuse reflectance. [-] */
+  char in_fname[STRLEN];
+  char out_fname[STRLEN];
+  char out_fformat;
+  long num_photons;
+  double Wth;
+  double dz;
+  double dr;
+  double da;
+  int nz;
+  int nr;
+  int na;
+  int nrc;    /* Number of radial grid points after convolution */
+  double drc; /* Radial grid separation after convolution [cm] */
+  float eps;  /* Relative integration tolerance */
+  BeamStruct beam;
+  short num_layers;
+  LayerStruct *layerspecs;
+} InputConvStruct;
 
-  double    **A_rz;		/* 2D probability density in turbid */
-  /* media over r & z. [1/cm3] */
-  double     *A_z;		/* 1D probability density over z. */
-  /* [1/cm] */
-  double     *A_l;		/* each layer's absorption */
-  /* probability. [-] */
-  double      A;		/* total absorption probability. [-] */
+typedef struct {
+  Boolean Rd_ra;
+  Boolean Rd_r;
+  Boolean A_rz;
+  Boolean Tt_ra;
+  Boolean Tt_r;
+} ConvStruct;
 
-  double    **Tt_ra;		/* 2D distribution of total */
-  /* transmittance. [1/(cm2 sr)] */
-  double     *Tt_r;		/* 1D radial distribution of */
-  /* transmittance. [1/cm2] */
-  double     *Tt_a;		/* 1D angular distribution of */
-  /* transmittance. [1/sr] */
-  double      Tt;		/* total transmittance. [-] */
+typedef struct {
+  double Rsp;
+  double **Rd_ra;
+  double *Rd_r;
+  double *Rd_a;
+  double Rd;
 
-  double    **Rd_rac;		/* convolved data. [J/(cm2 sr)] */
-  double     *Rd_rc;		/* [J/cm2]  	 */
-  double    **A_rzc;		/* [J/cm3]  	 */
-  double    **Tt_rac;		/* [J/(cm2 sr)] */
-  double     *Tt_rc;		/* [J/cm2]  	 */
+  double **A_rz;
+  double *A_z;
+  double *A_l;
+  double A;
 
-  char        allocated;	/* set to 1 when arrays are allocated. */
-  ConvStruct  conved;
-}           OutConvStruct;
+  double **Tt_ra;
+  double *Tt_r;
+  double *Tt_a;
+  double Tt;
 
-/***********************************************************
- *	Routine prototypes for dynamic memory allocation and
- *	release of arrays and matrices.
- *	Modified from Numerical Recipes in C.
- ****/
-double     *AllocVector(short, short);
-double    **AllocMatrix(short, short, short, short);
-void        FreeVector(double *, short, short);
-void        FreeMatrix(double **, short, short, short, short);
-void        nrerror(char *);
+  double **Rd_rac; /* Convolved diffuse reflectance [J/(cm2 sr)] */
+  double *Rd_rc;   /* Convolved radial reflectance [J/cm2] */
+  double **A_rzc;  /* Convolved absorbed energy density [J/cm3] */
+  double **Tt_rac; /* Convolved transmittance [J/(cm2 sr)] */
+  double *Tt_rc;   /* Convolved radial transmittance [J/cm2] */
 
-/***********************************************************
- *	Other prototypes.
- ****/
-void 
-IsoPlot(double **Z,		/* the 2D array Z[i][j]. */
-	long int IXmax,
-	long int IYmax,		/* the 0<=i<=IXmax, 0<=j<=IYmax. */
-	double Dx,
-	double Dy);		/* the gridline separations. */
-short       GetShort(short, short);
-float       GetFloat(float, float);
+  char allocated;
+  ConvStruct conved;
+} OutConvStruct;
+
+void IsoPlot(double **Z, long int IXmax, long int IYmax, double Dx, double Dy);
+short GetShort(short Lo, short Hi);
+float GetFloat(float Lo, float Hi);
+FILE *GetWriteFile(char *Ext);
+Boolean AllocConvData(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+void FreeConvData(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+float trapzd(float (*func)(float), float a, float b, int n);
+float qtrap(float (*func)(float), float a, float b, float EPS);
+double BessI0(double x);
+double ITheta(double r, double r2, double R);
+double ExpBessI0(double r, double r2, double R);
+
+void ConvA_rz(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+void ConvRd_ra(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+void ConvRd_r(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+void ConvTt_ra(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+void ConvTt_r(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+Boolean ReadMcoFile(const char *mco_fname, InputConvStruct *In_Ptr,
+                    OutConvStruct *Out_Ptr);
+void FreeMcoConvData(InputConvStruct *In_Ptr, OutConvStruct *Out_Ptr);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* CONV_H */

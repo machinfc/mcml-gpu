@@ -52,11 +52,13 @@ if(ENABLE_CUDA)
   endif()
 endif()
 
-# Core Physics & I/O Library
+# Core Physics, Convolution & I/O Library
 set(MCML_CORE_SOURCES
   src/mcml/mcmlgo.c
   src/mcml/mcmlio.c
   src/mcml/mcmlnr.c
+  src/conv/convconv.c
+  src/conv/extra.c
 )
 
 if(MCML_CUDA_ENABLED)
@@ -76,9 +78,12 @@ if(MCML_CUDA_ENABLED)
   set_target_properties(mcml_core PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-# Main Simulation Executable
+# Main Simulation & Finite-Beam Convolution Executables
 add_executable(mcml src/mcml/mcmlmain.c)
 target_link_libraries(mcml PRIVATE mcml_core)
+
+add_executable(conv src/conv/convmain.c)
+target_link_libraries(conv PRIVATE mcml_core)
 
 # Automated Test Suite (CTest)
 if(BUILD_TESTING)
@@ -105,4 +110,11 @@ if(BUILD_TESTING)
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
   endif()
+
+  add_test(
+    NAME integration_finite_beam_conv
+    COMMAND conv test.mco test_convolved.dat --beam gaussian --power 1.0 --radius 0.1
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  set_tests_properties(integration_finite_beam_conv PROPERTIES DEPENDS integration_smoke_test_cpu)
 endif()

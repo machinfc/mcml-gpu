@@ -11,6 +11,7 @@
  ****/
 
 #include "mcml.h"
+#include "conv.h"
 #include <assert.h>
 
 #define ASSERT_NEAR(actual, expected, tol, msg)                                \
@@ -251,6 +252,59 @@ static void test_cuda_hotspot_large_grid(void)
 }
 #endif
 
+static void test_finite_beam_convolution(void)
+{
+  /* 1. Modified Bessel function exp(-0)*I0(0) == 1.0 */
+  ASSERT_NEAR(BessI0(0.0), 1.0, 1e-7,
+              "Modified Bessel exp(-x)*I0(x) at x = 0");
+
+  /* 2. Flat-top circle overlap ITheta(r, r2, R):
+   *    When R >= r + r2 (full interior overlap), ITheta == 1.0;
+   *    when R < |r - r2| (disjoint), ITheta == 0.0. */
+  ASSERT_NEAR(ITheta(0.02, 0.03, 0.10), 1.0, 1e-9,
+              "Flat-beam overlap kernel ITheta (interior = 1.0)");
+  ASSERT_NEAR(ITheta(0.25, 0.05, 0.10), 0.0, 1e-9,
+              "Flat-beam overlap kernel ITheta (disjoint = 0.0)");
+
+  /* 3. Convolve a uniform diffuse reflectance sheet Rd(r) = 1.0 [1/cm^2]
+   *    with a flat-top circular beam (P = 1.0 J, R = 0.20 cm):
+   *    Near r = 0 (inside the flat-top radius), the convolved energy density
+   *    must equal the incident irradiance P / (pi * R^2) * (pi * Rd) -> P/R^2 * R^2 = P / (R^2)?
+   *    Specifically: ConvRd_r computes (2*P/R^2) * int_0^R 1.0 * 1.0 * r2 dr2
+   *    = (2*P/R^2) * (R^2 / 2) = P = 1.0 J/cm^2. */
+  InputConvStruct in_conv;
+  OutConvStruct out_conv;
+  memset(&in_conv, 0, sizeof(in_conv));
+  memset(&out_conv, 0, sizeof(out_conv));
+
+  in_conv.nz = 10;
+  in_conv.nr = 100;
+  in_conv.na = 1;
+  in_conv.nrc = 10;
+  in_conv.dz = 0.01;
+  in_conv.dr = 0.01;
+  in_conv.drc = 0.01;
+  in_conv.da = 0.5 * PI;
+  in_conv.eps = 1e-4f;
+  in_conv.beam.type = flat;
+  in_conv.beam.P = 1.0;
+  in_conv.beam.R = 0.20;
+
+  out_conv.Rd_r = AllocVector(0, in_conv.nr - 1);
+  for (int ir = 0; ir < in_conv.nr; ir++) {
+    out_conv.Rd_r[ir] = 1.0;
+  }
+  AllocConvData(&in_conv, &out_conv);
+  out_conv.allocated = 1;
+
+  ConvRd_r(&in_conv, &out_conv);
+  ASSERT_NEAR(out_conv.Rd_rc[0], 1.0, 0.01,
+              "Flat-beam radial convolution on uniform sheet");
+
+  FreeVector(out_conv.Rd_r, 0, in_conv.nr - 1);
+  FreeConvData(&in_conv, &out_conv);
+}
+
 int main(void)
 {
   printf("=== Running MCML Physics & Unit Test Suite ===\n");
@@ -260,6 +314,7 @@ int main(void)
   test_henyey_greenstein_moment();
   test_energy_conservation();
   test_32bit_grid_indexing();
+  test_finite_beam_convolution();
 #ifdef ENABLE_CUDA
   test_cuda_hotspot_large_grid();
 #endif

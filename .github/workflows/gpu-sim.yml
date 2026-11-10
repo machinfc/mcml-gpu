@@ -1,0 +1,76 @@
+name: GPU Simulator
+
+# Optional, non-required check. The hosted runners have no GPU, so this builds
+# the CUDA path (the existing CI builds with ENABLE_CUDA=OFF) and runs the
+# tests on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim). A simulator cannot reproduce
+# hardware-specific behavior or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "tests/**"
+      - "data/**"
+      - "scripts/validate_mco.py"
+      - "CMakeLists.txt"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (CUDA 13.0 and simulated H100)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ca87fe3143b29166822b923d6050945c5179408c # v0.1.5
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "13.0"
+
+      # 90-virtual embeds PTX only, which the simulator runs. The simulator
+      # needs a shared CUDA runtime.
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_OPENMP=ON \
+            -DENABLE_CUDA=ON \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.0/bin/nvcc \
+            -DCMAKE_CUDA_ARCHITECTURES=90-virtual \
+            -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared
+
+      - name: Build
+        run: cmake --build build -j3
+
+      # Runs unit_physics_tests (including its CUDA energy and absorption
+      # checks), the CPU and GPU smoke tests and the finite-beam convolution.
+      - name: Test
+        run: vgpu run ctest --test-dir build --output-on-failure --no-tests=error
+
+      # mcml falls back to the CPU with a warning when no CUDA device is found,
+      # so check that the GPU backend was really used before validating the
+      # energy balance of its output.
+      - name: GPU smoke test and energy conservation
+        working-directory: build
+        run: |
+          vgpu run ./mcml --gpu ../data/test.mci | tee gpu.log
+          grep -q "Backend\] NVIDIA CUDA GPU" gpu.log
+          python3 ../scripts/validate_mco.py test.mco 0.005
